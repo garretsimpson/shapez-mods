@@ -15,12 +15,12 @@ registerMod(() => {
       super(
         app,
         {
-          website: 'https://github.com/garretsimpson',
+          website: 'https://github.com/SkimnerPhi/shapez-mods',
           author: 'FatcatX and SkimnerPhi',
           name: 'Blueprint strings',
           version: '1.0.0',
           id: 'bp-string',
-          description: 'Generate a sharable string for when you copy & paste designs.'
+          description: 'Generate a sharable string for when you copy & paste designs. Strings are exported to clipboard automatically on blueprint copy, use Ctrl-V to import.'
         },
         modLoader
       );
