@@ -14,6 +14,7 @@ const METADATA = {
     version: "0.1",
     id: "synth",
     description: "Displays are now synths.  Display shapes to play sounds.",
+    minimumGameVersion: "^1.5.0",
 };
 
 const logger = createLogger("synth");
