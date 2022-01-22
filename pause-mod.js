@@ -5,6 +5,7 @@ const METADATA = {
     version: "0.1",
     id: "pause-mod",
     description: "Press Pause to pause / resume the game.",
+    minimumGameVersion: "^1.5.0",
 };
 
 const GameHUDExtention = ({ $super, $old }) => ({
