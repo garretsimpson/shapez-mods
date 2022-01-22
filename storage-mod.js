@@ -2,9 +2,10 @@ const METADATA = {
     website: "https://github.com/garretsimpson/shapez-mods",
     author: "FatcatX and SkimnerPhi",
     name: "Shapez storage mod",
-    version: "0.4",
+    version: "0.5",
     id: "storage-mod",
     description: "Select storages, then press 'b' to clear, or press 'n' to fill.",
+    minimumGameVersion: "^1.5.0",
 };
 
 const MassSelectorExtention = ({ $super, $old }) => ({
