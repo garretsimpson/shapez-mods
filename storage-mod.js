@@ -5,7 +5,7 @@ const METADATA = {
     version: "0.5",
     id: "storage-mod",
     description: "Select storages, then press 'b' to clear, or press 'n' to fill.",
-    minimumGameVersion: "^1.5.0",
+    minimumGameVersion: ">=1.5.0",
 };
 
 const MassSelectorExtention = ({ $super, $old }) => ({
