@@ -6,12 +6,12 @@ const METADATA = {
     id: "pause-mod",
     description: "Press Pause to pause / resume the game.  Press Space to step one tick.",
     minimumGameVersion: ">=1.5.0",
-    setttings: { gamePaused: false },
+    settings: { gamePaused: false },
 };
 
 const GameHUDExtention = ({ $super, $old }) => ({
     shouldPauseGame() {
-        return $old.shouldPauseGame.call(this) || METADATA.setttings.gamePaused;
+        return $old.shouldPauseGame.call(this) || METADATA.settings.gamePaused;
     },
 });
 
@@ -23,19 +23,19 @@ const GameCoreExtention = ({ $super, $old }) => ({
 
     stepTick() {
         const root = this.root;
-        METADATA.setttings.gamePaused = false;
+        METADATA.settings.gamePaused = false;
         root.time.updateRealtimeNow();
         root.time.performTicks(this.root.dynamicTickrate.deltaMs, this.boundInternalTick);
         root.productionAnalytics.update();
         root.achievementProxy.update();
-        METADATA.setttings.gamePaused = true;
+        METADATA.settings.gamePaused = true;
         return shapez.STOP_PROPAGATION;
     },
 });
 
 class Mod extends shapez.Mod {
     togglePause() {
-        METADATA.setttings.gamePaused = !METADATA.setttings.gamePaused;
+        METADATA.settings.gamePaused = !METADATA.settings.gamePaused;
     }
 
     init() {
