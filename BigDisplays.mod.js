@@ -1,7 +1,7 @@
 // @ts-nocheck
 const METADATA = {
     website: "https://github.com/garretsimpson/shapez-mods",
-    author: "FatcatX",
+    author: "saile515 and FatcatX",
     name: "Add big displays",
     version: "0.1",
     id: "big-displays",
