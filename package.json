@@ -1,0 +1,17 @@
+{
+    "name": "shapez-mods",
+    "version": "0.0.0",
+    "description": "Shapez Mods",
+    "repository": "https://github.com/garretsimpson/shapez-mods",
+    "author": "FatCatX <garretsimpson@yahoo.com>",
+    "scripts": {
+        "build": "webpack --node-env production",
+        "watch": "webpack --node-env development --watch"
+    },
+    "devDependencies": {
+        "source-map": "^0.7.3",
+        "string-replace-loader": "^3.1.0",
+        "webpack": "^5.68.0",
+        "webpack-cli": "^4.9.2"
+    }
+}

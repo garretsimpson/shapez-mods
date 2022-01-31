@@ -1,13 +1,16 @@
-// @ts-nocheck
-const METADATA = {
-    website: "https://github.com/garretsimpson/shapez-mods",
-    author: "saile515 and FatcatX",
-    name: "Add big displays",
-    version: "0.2",
-    id: "big-displays",
-    description: "Adds big displays: 16x1 8-color, 16x1 shapes",
-    minimumGameVersion: ">=1.5.0",
-};
+import { Mod, ModMetaBuilding } from "mods/mod";
+import { Component } from "game/component";
+import { GameSystem } from "game/game_system";
+import { enumColors } from "game/colors";
+import { Loader } from "core/loader";
+import { isTrueItem } from "game/items/boolean_item";
+import { COLOR_ITEM_SINGLETONS } from "game/items/color_item";
+import { globalConfig } from "core/config";
+import { defaultBuildingVariant } from "game/meta_building";
+import { Vector, enumDirection } from "core/vector";
+import { WiredPinsComponent, enumPinSlotType } from "game/components/wired_pins";
+
+import meta from "./mod.json";
 
 const DISPLAY_SIZE = { x: 16, y: 1 };
 
@@ -20,7 +23,7 @@ const enumBigDisplayType = {
     shape: "shape",
 };
 
-class BigDisplayComponent extends shapez.Component {
+class BigDisplayComponent extends Component {
     static getId() {
         return "BigDisplay";
     }
@@ -47,18 +50,16 @@ class BigDisplayComponent extends shapez.Component {
     }
 }
 
-class BigDisplaySystem extends shapez.GameSystem {
+class BigDisplaySystem extends GameSystem {
     constructor(root) {
         super(root);
         this.displaySprites = {};
 
-        for (const colorId in shapez.enumColors) {
-            if (colorId === shapez.enumColors.uncolored) {
+        for (const colorId in enumColors) {
+            if (colorId === enumColors.uncolored) {
                 continue;
             }
-            this.displaySprites[colorId] = shapez.Loader.getSprite(
-                "sprites/wires/display/" + colorId + ".png"
-            );
+            this.displaySprites[colorId] = Loader.getSprite("sprites/wires/display/" + colorId + ".png");
         }
     }
 
@@ -68,19 +69,17 @@ class BigDisplaySystem extends shapez.GameSystem {
         }
         switch (value.getItemType()) {
             case "boolean": {
-                return shapez.isTrueItem(value)
-                    ? shapez.COLOR_ITEM_SINGLETONS[shapez.enumColors.white]
-                    : null;
+                return isTrueItem(value) ? COLOR_ITEM_SINGLETONS[enumColors.white] : null;
             }
             case "color": {
                 const item = value;
-                return item.color === shapez.enumColors.uncolored ? null : item;
+                return item.color === enumColors.uncolored ? null : item;
             }
             case "shape": {
                 return value;
             }
             default:
-                shapez.assertAlways(false, "Unknown item type: " + value.getItemType());
+                assertAlways(false, "Unknown item type: " + value.getItemType());
         }
     }
 
@@ -108,13 +107,13 @@ class BigDisplaySystem extends shapez.GameSystem {
                     const layer = value.definition.layers[Math.floor(idx / 4)];
                     if (!layer) continue;
                     const item = layer[idx % 4];
-                    if (!item || item.color === shapez.enumColors.uncolored) continue;
+                    if (!item || item.color === enumColors.uncolored) continue;
                     const worldPos = tile.toWorldSpaceCenterOfTile();
                     this.displaySprites[item.color].drawCachedCentered(
                         parameters,
                         worldPos.x,
                         worldPos.y,
-                        shapez.globalConfig.tileSize
+                        globalConfig.tileSize
                     );
                 }
             }
@@ -122,7 +121,7 @@ class BigDisplaySystem extends shapez.GameSystem {
     }
 }
 
-class MetaBigDisplays extends shapez.ModMetaBuilding {
+class MetaBigDisplays extends ModMetaBuilding {
     constructor() {
         super("bigDisplays");
     }
@@ -130,7 +129,7 @@ class MetaBigDisplays extends shapez.ModMetaBuilding {
     static getAllVariantCombinations() {
         return [
             {
-                variant: shapez.defaultBuildingVariant,
+                variant: defaultBuildingVariant,
                 name: "Color Display (16 x 1)",
                 description: "Displays 16 colors, one for each corner of the connected shape signal.",
 
@@ -153,7 +152,7 @@ class MetaBigDisplays extends shapez.ModMetaBuilding {
     }
 
     getAvailableVariants() {
-        return [shapez.defaultBuildingVariant, enumBigDisplayVariants.shapes];
+        return [defaultBuildingVariant, enumBigDisplayVariants.shapes];
     }
 
     getSilhouetteColor() {
@@ -161,17 +160,17 @@ class MetaBigDisplays extends shapez.ModMetaBuilding {
     }
 
     getDimensions() {
-        return new shapez.Vector(DISPLAY_SIZE.x, DISPLAY_SIZE.y);
+        return new Vector(DISPLAY_SIZE.x, DISPLAY_SIZE.y);
     }
 
     setupEntityComponents(entity) {
         entity.addComponent(
-            new shapez.WiredPinsComponent({
+            new WiredPinsComponent({
                 slots: [
                     {
-                        pos: new shapez.Vector(0, 0),
-                        direction: shapez.enumDirection.left,
-                        type: shapez.enumPinSlotType.logicalAcceptor,
+                        pos: new Vector(0, 0),
+                        direction: enumDirection.left,
+                        type: enumPinSlotType.logicalAcceptor,
                     },
                 ],
             })
@@ -182,7 +181,7 @@ class MetaBigDisplays extends shapez.ModMetaBuilding {
         for (let y = 0; y < size.y; y++) {
             for (let x = 0; x < size.x; x++) {
                 slots.push({
-                    pos: new shapez.Vector(x, y),
+                    pos: new Vector(x, y),
                 });
             }
         }
@@ -195,13 +194,13 @@ class MetaBigDisplays extends shapez.ModMetaBuilding {
 
     updateVariants(entity, rotationVariant, variant) {
         switch (variant) {
-            case shapez.defaultBuildingVariant:
+            case defaultBuildingVariant:
                 entity.components.BigDisplay.setType(enumBigDisplayType.color);
                 entity.components.WiredPins.setSlots([
                     {
-                        pos: new shapez.Vector(0, 0),
-                        direction: shapez.enumDirection.left,
-                        type: shapez.enumPinSlotType.logicalAcceptor,
+                        pos: new Vector(0, 0),
+                        direction: enumDirection.left,
+                        type: enumPinSlotType.logicalAcceptor,
                     },
                 ]);
                 break;
@@ -209,14 +208,14 @@ class MetaBigDisplays extends shapez.ModMetaBuilding {
                 entity.components.BigDisplay.setType(enumBigDisplayType.shape);
                 entity.components.WiredPins.setSlots([
                     {
-                        pos: new shapez.Vector(0, 0),
-                        direction: shapez.enumDirection.left,
-                        type: shapez.enumPinSlotType.logicalAcceptor,
+                        pos: new Vector(0, 0),
+                        direction: enumDirection.left,
+                        type: enumPinSlotType.logicalAcceptor,
                     },
                     {
-                        pos: new shapez.Vector(0, 0),
-                        direction: shapez.enumDirection.bottom,
-                        type: shapez.enumPinSlotType.logicalAcceptor,
+                        pos: new Vector(0, 0),
+                        direction: enumDirection.bottom,
+                        type: enumPinSlotType.logicalAcceptor,
                     },
                 ]);
                 break;
@@ -224,7 +223,7 @@ class MetaBigDisplays extends shapez.ModMetaBuilding {
     }
 }
 
-class Mod extends shapez.Mod {
+class BigDisplays extends Mod {
     init() {
         this.modInterface.registerComponent(BigDisplayComponent);
         this.modInterface.registerNewBuilding({
@@ -241,13 +240,13 @@ class Mod extends shapez.Mod {
             location: "secondary",
             metaClass: MetaBigDisplays,
         });
-        // const metaClass = shapez.MetaDisplayBuilding;
+        // const metaClass = MetaDisplayBuilding;
         // const combinations = MetaBigDisplays.getAllVariantCombinations();
         // combinations.forEach(combination => {
         //     const id = "display";
-        //     const variant = combination.variant || shapez.defaultBuildingVariant;
-        //     id += variant === shapez.defaultBuildingVariant ? "" : "-" + variant;
-        //     shapez.registerBuildingVariant(id, metaClass, variant, combination.rotationVariant || 0);
+        //     const variant = combination.variant || defaultBuildingVariant;
+        //     id += variant === defaultBuildingVariant ? "" : "-" + variant;
+        //     registerBuildingVariant(id, metaClass, variant, combination.rotationVariant || 0);
         // });
         this.modInterface.registerGameSystem({
             id: "bigDisplay",
@@ -257,6 +256,8 @@ class Mod extends shapez.Mod {
         });
     }
 }
+
+registerMod(BigDisplays, meta);
 
 ////////////////////////////////////////////////////////////////////////
 
