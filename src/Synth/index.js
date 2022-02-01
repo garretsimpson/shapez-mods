@@ -1,21 +1,12 @@
-import { Mod } from "mods/mod";
-import { GameSystem } from "game_system";
 import { createLogger } from "core/logging";
-import { MOD_SIGNALS } from "mods/mod_signals";
 import { Signal } from "core/signal";
 import { GameCore } from "game/core";
-
+import { GameSystem } from "game/game_system";
+import { Mod } from "mods/mod";
+import { MOD_SIGNALS } from "mods/mod_signals";
 import * as Tone from "tone";
 
-const METADATA = {
-    website: "",
-    author: "FatCatX",
-    name: "Synth",
-    version: "0.1",
-    id: "synth",
-    description: "Displays are now synths.  Display shapes to play sounds.",
-    minimumGameVersion: ">=1.5.0",
-};
+import META from "./mod.json";
 
 const logger = createLogger("synth");
 
@@ -190,8 +181,6 @@ class ShapezSynth {
 
 class SynthMod extends Mod {
     init() {
-        console.log("##### Init mod:", METADATA.name);
-
         MOD_SIGNALS.doneDrawing = new Signal();
         this.modInterface.runAfterMethod(GameCore, "draw", function () {
             MOD_SIGNALS.doneDrawing.dispatch();
@@ -206,4 +195,4 @@ class SynthMod extends Mod {
     }
 }
 
-window.$shapez_registerMod(SynthMod, METADATA);
+registerMod(SynthMod, META);

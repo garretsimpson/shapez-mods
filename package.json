@@ -11,6 +11,7 @@
     "devDependencies": {
         "source-map": "^0.7.3",
         "string-replace-loader": "^3.1.0",
+        "tone": "^14.7.77",
         "webpack": "^5.68.0",
         "webpack-cli": "^4.9.2"
     }
