@@ -1,0 +1,10 @@
+{
+    "id": "true-flip",
+    "name": "True Flip",
+    "author": "tobspr and FatcatX",
+    "version": "0.3",
+    "description": "Add a true flipper building",
+    "website": "https://github.com/garretsimpson/shapez-mods",
+    "minimumGameVersion": ">=1.5.0",
+    "entry": "./index.js"
+}
