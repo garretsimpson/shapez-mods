@@ -1,0 +1,11 @@
+{
+    "id": "pause-and-step",
+    "name": "Pause and Step",
+    "author": "FatcatX",
+    "version": "0.4",
+    "description": "Press Pause/Break key to pause or resume the game.  Press or hold 'n' to step one tick.",
+    "website": "https://github.com/garretsimpson/shapez-mods",
+    "minimumGameVersion": ">=1.5.0",
+    "settings": { "gamePaused": false },
+    "entry": "./index.js"
+}
