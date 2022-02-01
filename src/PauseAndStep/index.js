@@ -36,8 +36,6 @@ class PauseAndStep extends Mod {
     }
 
     init() {
-        console.log("##### Init mod:", META.name);
-
         this.modInterface.registerIngameKeybinding({
             id: "pause",
             keyCode: 19, // Pause
