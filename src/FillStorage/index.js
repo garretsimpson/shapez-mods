@@ -1,17 +1,18 @@
-const METADATA = {
-    website: "https://github.com/garretsimpson/shapez-mods",
-    author: "FatcatX and SkimnerPhi",
-    name: "Shapez storage mod",
-    version: "0.5",
-    id: "storage-mod",
-    description: "Select storages, then press 'b' to clear, or press 'n' to fill.",
-    minimumGameVersion: ">=1.5.0",
+import { StorageComponent } from "game/components/storage";
+import { HUDMassSelector } from "game/hud/parts/mass_selector";
+import { KEYMAPPINGS, keyToKeyCode } from "game/key_action_mapper";
+import { Mod } from "mods/mod";
+
+import META from "./mod.json";
+
+const KEYID = {
+    fillStorages: "fill_storages",
 };
 
 const MassSelectorExtention = ({ $super, $old }) => ({
     initialize() {
         $old.initialize.call(this);
-        this.root.keyMapper.getBinding(shapez.KEYMAPPINGS.mods["fill_storages"]).add(this.fillStorages, this);
+        this.root.keyMapper.getBinding(KEYMAPPINGS.mods[KEYID.fillStorages]).add(this.fillStorages, this);
     },
 
     clearBelts() {
@@ -19,7 +20,7 @@ const MassSelectorExtention = ({ $super, $old }) => ({
             const entity = this.root.entityMgr.findByUid(uid);
             for (const component of Object.values(entity.components)) {
                 component.clear();
-                if (component instanceof shapez.StorageComponent && component.storedItem) {
+                if (component instanceof StorageComponent && component.storedItem) {
                     component.storedCount = 0;
                     component.storedItem = null;
                 }
@@ -32,7 +33,7 @@ const MassSelectorExtention = ({ $super, $old }) => ({
         for (const uid of this.selectedUids) {
             const entity = this.root.entityMgr.findByUid(uid);
             for (const component of Object.values(entity.components)) {
-                if (component instanceof shapez.StorageComponent && component.storedItem) {
+                if (component instanceof StorageComponent && component.storedItem) {
                     component.storedCount = 5000;
                 }
             }
@@ -41,15 +42,17 @@ const MassSelectorExtention = ({ $super, $old }) => ({
     },
 });
 
-class Mod extends shapez.Mod {
+class FillStorage extends Mod {
     init() {
         this.modInterface.registerIngameKeybinding({
-            id: "fill_storages",
-            keyCode: shapez.keyToKeyCode("n"),
+            id: KEYID.fillStorages,
+            keyCode: keyToKeyCode("n"),
             translation: "Fill Storages",
             modifiers: {},
         });
 
-        this.modInterface.extendClass(shapez.HUDMassSelector, MassSelectorExtention);
+        this.modInterface.extendClass(HUDMassSelector, MassSelectorExtention);
     }
 }
+
+registerMod(FillStorage, META);
