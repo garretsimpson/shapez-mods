@@ -22,7 +22,7 @@ const SHAPES = ["C", "R", "W", "S"];
 
 SerializerInternal.prototype["deserializeEntityNoPlace"] = function (root, payload) {
     const staticData = payload.components.StaticMapEntity;
-    assert(staticData, "entity has no static data");
+    window.assert(staticData, "entity has no static data");
 
     const code = staticData.code;
     const data = getBuildingDataFromCode(code);
@@ -216,7 +216,7 @@ function readValue(dataIn, pos) {
         head += dataIn.charCodeAt(pos++);
     }
 
-    quads = new Array(16);
+    const quads = new Array(16);
     let buf = 0,
         bits = 0;
 
@@ -348,4 +348,5 @@ class BPStrings extends Mod {
     }
 }
 
+// eslint-disable-next-line no-undef
 registerMod(BPStrings, meta);

@@ -77,7 +77,7 @@ class SynthSystem extends GameSystem {
 
         // Update synth values
         for (let uid of Object.keys(synths)) {
-            assert(
+            window.assert(
                 synths[uid] != undefined && displayInfo[uid] != undefined,
                 "synths not in sync with displays"
             );
@@ -195,4 +195,5 @@ class SynthMod extends Mod {
     }
 }
 
+// eslint-disable-next-line no-undef
 registerMod(SynthMod, META);

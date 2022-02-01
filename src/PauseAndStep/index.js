@@ -6,13 +6,13 @@ import { Mod } from "mods/mod";
 
 import META from "./mod.json";
 
-const GameHUDExtention = ({ $super, $old }) => ({
+const GameHUDExtention = ({ $old }) => ({
     shouldPauseGame() {
         return $old.shouldPauseGame.call(this) || META.settings.gamePaused;
     },
 });
 
-const GameCoreExtention = ({ $super, $old }) => ({
+const GameCoreExtention = ({ $old }) => ({
     initializeRoot(...args) {
         $old.initializeRoot.call(this, ...args);
         this.root.keyMapper.getBinding(KEYMAPPINGS.mods["step"]).add(this.stepTick, this);
@@ -56,4 +56,5 @@ class PauseAndStep extends Mod {
     }
 }
 
+// eslint-disable-next-line no-undef
 registerMod(PauseAndStep, META);

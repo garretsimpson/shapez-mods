@@ -9,7 +9,7 @@ const KEYID = {
     fillStorages: "fill_storages",
 };
 
-const MassSelectorExtention = ({ $super, $old }) => ({
+const MassSelectorExtention = ({ $old }) => ({
     initialize() {
         $old.initialize.call(this);
         this.root.keyMapper.getBinding(KEYMAPPINGS.mods[KEYID.fillStorages]).add(this.fillStorages, this);
@@ -55,4 +55,5 @@ class FillStorage extends Mod {
     }
 }
 
+// eslint-disable-next-line no-undef
 registerMod(FillStorage, META);
