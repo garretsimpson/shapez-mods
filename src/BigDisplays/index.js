@@ -1,17 +1,16 @@
-import { Mod, ModMetaBuilding } from "mods/mod";
-import { Component } from "game/component";
-import { GameSystem } from "game/game_system";
-import { enumColors } from "game/colors";
+import { globalConfig } from "core/config";
 import { Loader } from "core/loader";
+import { enumDirection, Vector } from "core/vector";
+import { enumColors } from "game/colors";
+import { Component } from "game/component";
+import { enumPinSlotType, WiredPinsComponent } from "game/components/wired_pins";
+import { GameSystem } from "game/game_system";
 import { isTrueItem } from "game/items/boolean_item";
 import { COLOR_ITEM_SINGLETONS } from "game/items/color_item";
-import { globalConfig } from "core/config";
 import { defaultBuildingVariant } from "game/meta_building";
-import { Vector, enumDirection } from "core/vector";
-import { WiredPinsComponent, enumPinSlotType } from "game/components/wired_pins";
-
-import displayIcon from "./displayIcon.png";
+import { Mod, ModMetaBuilding } from "mods/mod";
 import display16x1 from "./display16x1.png";
+import displayIcon from "./displayIcon.png";
 
 import meta from "./mod.json";
 

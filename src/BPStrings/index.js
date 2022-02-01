@@ -1,13 +1,13 @@
-const METADATA = {
-    website: "https://github.com/SkimnerPhi/shapez-mods",
-    author: "FatcatX and SkimnerPhi",
-    name: "Blueprint strings",
-    version: "1.1.0",
-    id: "bp-string",
-    description:
-        "Generate a sharable string for when you copy & paste designs. Strings are exported to clipboard automatically on blueprint copy, use Ctrl-V to import.",
-    minimumGameVersion: ">=1.5.0",
-};
+import { compressX64, decompressX64 } from "core/lzstring";
+import { Vector } from "core/vector";
+import { Blueprint } from "game/blueprint";
+import { getBuildingDataFromCode } from "game/building_codes";
+import { HUDBlueprintPlacer } from "game/hud/parts/blueprint_placer";
+import { Mod } from "mods/mod";
+import { SOUNDS } from "platform/sound";
+import { SerializerInternal } from "savegame/serializer_internal";
+
+import meta from "./mod.json";
 
 const BP_PREFIX = ">>>";
 const BP_SUFFIX = "<<<";
@@ -20,18 +20,18 @@ const CONSTANT_SIGNAL = 31;
 const COLORS = ["uncolored", "blue", "green", "cyan", "red", "purple", "yellow", "white"];
 const SHAPES = ["C", "R", "W", "S"];
 
-shapez.SerializerInternal.prototype["deserializeEntityNoPlace"] = function (root, payload) {
+SerializerInternal.prototype["deserializeEntityNoPlace"] = function (root, payload) {
     const staticData = payload.components.StaticMapEntity;
     assert(staticData, "entity has no static data");
 
     const code = staticData.code;
-    const data = shapez.getBuildingDataFromCode(code);
+    const data = getBuildingDataFromCode(code);
 
     const metaBuilding = data.metaInstance;
 
     const entity = metaBuilding.createEntity({
         root,
-        origin: shapez.Vector.fromSerializedObject(staticData.origin),
+        origin: Vector.fromSerializedObject(staticData.origin),
         rotation: staticData.rotation,
         originalRotation: staticData.originalRotation,
         rotationVariant: data.rotationVariant,
@@ -97,7 +97,7 @@ function serializeBlueprintString(entities) {
     // strings will always start with >>> and a flag indicating format
     //   and end with <<<
     let output = String.fromCharCode(...chunks.flat(Infinity));
-    let compressedOutput = shapez.compressX64(output);
+    let compressedOutput = compressX64(output);
     let b64Output = btoa(output);
     if (compressedOutput.length < b64Output.length) {
         return BP_PREFIX + BP_FLAG_COMPRESSED + compressedOutput + BP_SUFFIX;
@@ -119,7 +119,7 @@ function deserializeBlueprintString(root, blueprint) {
                 data = atob(data);
                 break;
             case BP_FLAG_COMPRESSED:
-                data = shapez.decompressX64(data);
+                data = decompressX64(data);
                 break;
             default:
                 throw "Unknown blueprint format";
@@ -165,7 +165,7 @@ function deserializeBlueprintString(root, blueprint) {
             }
         }
 
-        const serializer = new shapez.SerializerInternal();
+        const serializer = new SerializerInternal();
 
         const buildingEntities = buildings.map(b => {
             b.components.StaticMapEntity.origin.x -= (maxPos[0] / 2) | 0;
@@ -180,7 +180,7 @@ function deserializeBlueprintString(root, blueprint) {
             return result;
         });
 
-        return new shapez.Blueprint(buildingEntities);
+        return new Blueprint(buildingEntities);
     } catch (ex) {
         console.error("Invalid blueprint data:", ex.message);
     }
@@ -303,9 +303,9 @@ function writeValue(value, type) {
         return [...head, ...data];
     }
 }
-class Mod extends shapez.Mod {
+class BPStrings extends Mod {
     init() {
-        this.modInterface.runAfterMethod(shapez.HUDBlueprintPlacer, "initialize", function () {
+        this.modInterface.runAfterMethod(HUDBlueprintPlacer, "initialize", function () {
             document.addEventListener("paste", ev => {
                 if (this.root.app.inputMgr.getTopReciever().context === "state-InGameState") {
                     let blueprint;
@@ -326,10 +326,10 @@ class Mod extends shapez.Mod {
         });
 
         this.modInterface.runAfterMethod(
-            shapez.HUDBlueprintPlacer,
+            HUDBlueprintPlacer,
             "createBlueprintFromBuildings",
             async function () {
-                const data = new shapez.SerializerInternal().serializeEntityArray(
+                const data = new SerializerInternal().serializeEntityArray(
                     this.currentBlueprint.get().entities
                 );
 
@@ -338,7 +338,7 @@ class Mod extends shapez.Mod {
                 try {
                     const bpString = serializeBlueprintString(data);
                     await navigator.clipboard.writeText(bpString);
-                    this.root.soundProxy.playUi(shapez.SOUNDS.copy);
+                    this.root.soundProxy.playUi(SOUNDS.copy);
                     console.debug("Copied blueprint to clipboard");
                 } catch (ex) {
                     console.error("Copy to clipboard failed:", ex.message);
@@ -347,3 +347,5 @@ class Mod extends shapez.Mod {
         );
     }
 }
+
+registerMod(BPStrings, meta);
