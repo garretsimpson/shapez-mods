@@ -4,10 +4,11 @@ import { enumDirection, Vector } from "core/vector";
 import { enumColors } from "game/colors";
 import { Component } from "game/component";
 import { enumPinSlotType, WiredPinsComponent } from "game/components/wired_pins";
-import { GameSystem } from "game/game_system";
-import { isTrueItem } from "game/items/boolean_item";
+import { GameSystemWithFilter } from "game/game_system_with_filter";
+import { BOOL_TRUE_SINGLETON, BOOL_FALSE_SINGLETON, isTrueItem, isTruthyItem } from "game/items/boolean_item";
 import { COLOR_ITEM_SINGLETONS } from "game/items/color_item";
 import { defaultBuildingVariant } from "game/meta_building";
+import { types } from "savegame/serialization";
 import { Mod, ModMetaBuilding } from "mods/mod";
 import display16x1 from "./display16x1.png";
 import displayIcon from "./displayIcon.png";
@@ -30,7 +31,12 @@ class BigDisplayComponent extends Component {
         return "BigDisplay";
     }
 
-    // TODO: getSchema() ?
+    // Is getSchema needed?
+    static getSchema() {
+        return {
+            type: types.string,
+        };
+    }
 
     constructor({ type = enumBigDisplayType.color, slots = [] }) {
         super();
@@ -52,15 +58,13 @@ class BigDisplayComponent extends Component {
     }
 }
 
-class BigDisplaySystem extends GameSystem {
+class BigDisplaySystem extends GameSystemWithFilter {
     constructor(root) {
-        super(root);
+        super(root, [BigDisplayComponent]);
         this.displaySprites = {};
 
         for (const colorId in enumColors) {
-            if (colorId === enumColors.uncolored) {
-                continue;
-            }
+            if (colorId === enumColors.uncolored) continue;
             this.displaySprites[colorId] = Loader.getSprite("sprites/wires/display/" + colorId + ".png");
         }
     }
@@ -81,42 +85,76 @@ class BigDisplaySystem extends GameSystem {
                 return value;
             }
             default:
-                assertAlways(false, "Unknown item type: " + value.getItemType());
+                window.assert(false, "Unknown item type: " + value.getItemType());
+        }
+    }
+
+    update() {
+        const entities = this.allEntities;
+        for (let entity of entities) {
+            const displayComp = entity.components.BigDisplay;
+            if (!displayComp) continue;
+
+            if (displayComp.type === enumBigDisplayType.color) {
+                // clear display
+                const slots = entity.components.BigDisplay.slots;
+                for (let slot of slots) {
+                    slot.value = null;
+                }
+            }
+
+            const pinsComp = entity.components.WiredPins;
+            if (displayComp.type === enumBigDisplayType.shape) {
+                // Forward sync signal
+                const inPin = pinsComp.slots[1];
+                const outPin = pinsComp.slots[2];
+                if (!inPin.linkedNetwork) continue;
+                const newValue = isTruthyItem(inPin.linkedNetwork.currentValue)
+                    ? BOOL_TRUE_SINGLETON
+                    : BOOL_FALSE_SINGLETON;
+                outPin.value = newValue;
+            }
+
+            const valueNetwork = pinsComp.slots[0].linkedNetwork;
+            if (!valueNetwork || !valueNetwork.hasValue()) continue;
+            const inputValue = this.getDisplayItem(valueNetwork.currentValue);
+            if (inputValue.getItemType() !== "shape") continue;
+
+            if (displayComp.type === enumBigDisplayType.color) {
+                // map input value to display slots
+                const slots = entity.components.BigDisplay.slots;
+                for (let slot of slots) {
+                    const idx = DISPLAY_SIZE.x * slot.pos.y + slot.pos.x;
+                    const layer = inputValue.definition.layers[Math.floor(idx / 4)];
+                    if (!layer) continue;
+                    slot.value = layer[idx % 4];
+                }
+            }
         }
     }
 
     drawChunk(parameters, chunk) {
-        const contents = chunk.containedEntitiesByLayer.regular;
-        for (let i = 0; i < contents.length; ++i) {
-            const entity = contents[i];
-            if (entity && entity.components.BigDisplay) {
-                const pinsComp = entity.components.WiredPins;
-                const valueNetwork = pinsComp.slots[0].linkedNetwork;
-                if (!valueNetwork || !valueNetwork.hasValue()) {
-                    continue;
-                }
-                const value = this.getDisplayItem(valueNetwork.currentValue);
-                if (!value || value.getItemType() !== "shape") continue;
-                // console.debug("##### value:", value);
-                // const shape = value.getAsCopyableKey();
-                // console.debug("##### shape:", shape);
-                const slots = entity.components.BigDisplay.slots;
-                for (let slot of slots) {
-                    const tile = entity.components.StaticMapEntity.localTileToWorld(slot.pos);
-                    if (!chunk.tileSpaceRectangle.containsPoint(tile.x, tile.y)) continue;
-                    // TODO: map position per display type
-                    const idx = slot.pos.x;
-                    const layer = value.definition.layers[Math.floor(idx / 4)];
-                    if (!layer) continue;
-                    const item = layer[idx % 4];
-                    if (!item || item.color === enumColors.uncolored) continue;
-                    const worldPos = tile.toWorldSpaceCenterOfTile();
-                    this.displaySprites[item.color].drawCachedCentered(
+        const entities = chunk.containedEntitiesByLayer.regular;
+        for (let entity of entities) {
+            if (!entity || !entity.components.BigDisplay) continue;
+            const displayComp = entity.components.BigDisplay;
+            const slots = entity.components.BigDisplay.slots;
+            for (let slot of slots) {
+                const tile = entity.components.StaticMapEntity.localTileToWorld(slot.pos);
+                if (!chunk.tileSpaceRectangle.containsPoint(tile.x, tile.y)) continue;
+                const worldPos = tile.toWorldSpaceCenterOfTile();
+                const value = slot.value;
+                if (displayComp.type === enumBigDisplayType.color) {
+                    if (!value || value.color === enumColors.uncolored) continue;
+                    this.displaySprites[value.color].drawCachedCentered(
                         parameters,
                         worldPos.x,
                         worldPos.y,
                         globalConfig.tileSize
                     );
+                }
+                if (displayComp.type === enumBigDisplayType.shape) {
+                    continue;
                 }
             }
         }
@@ -219,6 +257,11 @@ class MetaBigDisplays extends ModMetaBuilding {
                         direction: enumDirection.bottom,
                         type: enumPinSlotType.logicalAcceptor,
                     },
+                    {
+                        pos: new Vector(0, 0),
+                        direction: enumDirection.top,
+                        type: enumPinSlotType.logicalEjector,
+                    },
                 ]);
                 break;
         }
@@ -259,4 +302,5 @@ class BigDisplays extends Mod {
     }
 }
 
+// eslint-disable-next-line no-undef
 registerMod(BigDisplays, meta);
