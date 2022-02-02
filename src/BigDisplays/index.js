@@ -13,7 +13,7 @@ import { Mod, ModMetaBuilding } from "mods/mod";
 import display16x1 from "./display16x1.png";
 import displayIcon from "./displayIcon.png";
 
-import meta from "./mod.json";
+import META from "./mod.json";
 
 const DISPLAY_SIZE = { x: 16, y: 1 };
 
@@ -91,66 +91,73 @@ class BigDisplaySystem extends GameSystemWithFilter {
     }
 
     update() {
-        const entities = this.allEntities;
-        for (let entity of entities) {
+        for (let entity of this.allEntities) {
             const displayComp = entity.components.BigDisplay;
             if (!displayComp) continue;
-            const pinsComp = entity.components.WiredPins;
+            if (displayComp.type === enumBigDisplayType.color) this.updateColorDisplay(entity);
+            if (displayComp.type === enumBigDisplayType.shape) this.updateShapeDisplay(entity);
+        }
+    }
 
-            let inPin = null;
-            let outPin = null;
-            if (displayComp.type === enumBigDisplayType.shape) {
-                // Forward sync signal
-                inPin = pinsComp.slots[1];
-                outPin = pinsComp.slots[2];
-                if (!inPin.linkedNetwork) continue;
-                outPin.value = inPin.linkedNetwork.currentValue;
-            }
+    updateColorDisplay(entity) {
+        const displayComp = entity.components.BigDisplay;
+        const pinsComp = entity.components.WiredPins;
 
-            if (displayComp.type === enumBigDisplayType.color) {
-                // clear display
-                for (let slot of displayComp.slots) {
-                    slot.value = null;
-                }
-            }
+        // clear display
+        for (let slot of displayComp.slots) {
+            slot.value = null;
+        }
 
-            if (
-                displayComp.type === enumBigDisplayType.shape &&
-                inPin.linkedNetwork &&
-                isTruthyItem(inPin.linkedNetwork.currentValue)
-            ) {
-                // sync display
-                displayComp.index = 0;
-                for (let slot of displayComp.slots) {
-                    slot.value = slot.data;
-                    slot.data = null;
-                }
-            }
+        const valuePin = pinsComp.slots[0];
+        let inputValue = null;
+        if (valuePin.linkedNetwork && valuePin.linkedNetwork.hasValue()) {
+            inputValue = this.getDisplayItem(valuePin.linkedNetwork.currentValue);
+        }
 
-            const valuePin = pinsComp.slots[0];
-            let inputValue = null;
-            if (valuePin.linkedNetwork && valuePin.linkedNetwork.hasValue()) {
-                inputValue = this.getDisplayItem(valuePin.linkedNetwork.currentValue);
-            }
+        if (!inputValue || inputValue.getItemType() !== "shape") return;
+        // map input value to display slots
+        for (let slot of displayComp.slots) {
+            const idx = DISPLAY_SIZE.x * slot.pos.y + slot.pos.x;
+            const layer = inputValue.definition.layers[Math.floor(idx / 4)];
+            if (!layer) continue;
+            const quad = layer[idx % 4];
+            if (!quad) continue;
+            slot.value = COLOR_ITEM_SINGLETONS[quad.color];
+        }
+    }
 
-            if (displayComp.type === enumBigDisplayType.color) {
-                if (!inputValue || inputValue.getItemType() !== "shape") continue;
-                // map input value to display slots
-                for (let slot of displayComp.slots) {
-                    const idx = DISPLAY_SIZE.x * slot.pos.y + slot.pos.x;
-                    const layer = inputValue.definition.layers[Math.floor(idx / 4)];
-                    if (!layer) continue;
-                    slot.value = layer[idx % 4];
-                }
-            }
+    updateShapeDisplay(entity) {
+        const displayComp = entity.components.BigDisplay;
+        const pinsComp = entity.components.WiredPins;
 
-            if (displayComp.type === enumBigDisplayType.shape) {
-                const index = displayComp.index;
-                displayComp.index = (index + 1) % (DISPLAY_SIZE.x * DISPLAY_SIZE.y);
-                if (!inputValue || inputValue.getItemType() !== "shape") continue;
-                displayComp.slots[index].data = inputValue;
+        // Forward sync signal
+        const inPin = pinsComp.slots[1];
+        const outPin = pinsComp.slots[2];
+        let sync = false;
+        if (inPin.linkedNetwork) {
+            outPin.value = inPin.linkedNetwork.currentValue;
+            sync = isTruthyItem(inPin.linkedNetwork.currentValue);
+        }
+
+        if (sync) {
+            // sync display
+            displayComp.index = 0;
+            for (let slot of displayComp.slots) {
+                slot.value = slot.data;
+                slot.data = null;
             }
         }
+
+        const valuePin = pinsComp.slots[0];
+        let inputValue = null;
+        if (valuePin.linkedNetwork && valuePin.linkedNetwork.hasValue()) {
+            inputValue = this.getDisplayItem(valuePin.linkedNetwork.currentValue);
+        }
+
+        const index = displayComp.index;
+        displayComp.index = (index + 1) % (DISPLAY_SIZE.x * DISPLAY_SIZE.y);
+        if (!inputValue || inputValue.getItemType() !== "shape") return;
+        displayComp.slots[index].data = inputValue;
     }
 
     drawChunk(parameters, chunk) {
@@ -290,6 +297,7 @@ class MetaBigDisplays extends ModMetaBuilding {
 
 class BigDisplays extends Mod {
     init() {
+        console.debug("##### Init mod:", META.id);
         this.modInterface.registerComponent(BigDisplayComponent);
         this.modInterface.registerNewBuilding({
             metaClass: MetaBigDisplays,
@@ -305,14 +313,6 @@ class BigDisplays extends Mod {
             location: "secondary",
             metaClass: MetaBigDisplays,
         });
-        // const metaClass = MetaDisplayBuilding;
-        // const combinations = MetaBigDisplays.getAllVariantCombinations();
-        // combinations.forEach(combination => {
-        //     const id = "display";
-        //     const variant = combination.variant || defaultBuildingVariant;
-        //     id += variant === defaultBuildingVariant ? "" : "-" + variant;
-        //     registerBuildingVariant(id, metaClass, variant, combination.rotationVariant || 0);
-        // });
         this.modInterface.registerGameSystem({
             id: "bigDisplay",
             systemClass: BigDisplaySystem,
@@ -323,4 +323,4 @@ class BigDisplays extends Mod {
 }
 
 // eslint-disable-next-line no-undef
-registerMod(BigDisplays, meta);
+registerMod(BigDisplays, META);
