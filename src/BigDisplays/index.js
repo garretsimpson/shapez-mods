@@ -5,7 +5,7 @@ import { enumColors } from "game/colors";
 import { Component } from "game/component";
 import { enumPinSlotType, WiredPinsComponent } from "game/components/wired_pins";
 import { GameSystemWithFilter } from "game/game_system_with_filter";
-import { BOOL_TRUE_SINGLETON, BOOL_FALSE_SINGLETON, isTrueItem, isTruthyItem } from "game/items/boolean_item";
+import { isTrueItem, isTruthyItem } from "game/items/boolean_item";
 import { COLOR_ITEM_SINGLETONS } from "game/items/color_item";
 import { defaultBuildingVariant } from "game/meta_building";
 import { types } from "savegame/serialization";
@@ -38,8 +38,9 @@ class BigDisplayComponent extends Component {
         };
     }
 
-    constructor({ type = enumBigDisplayType.color, slots = [] }) {
+    constructor({ index = 0, type = enumBigDisplayType.color, slots = [] }) {
         super();
+        this.index = index;
         this.setType(type);
         this.setSlots(slots);
     }
@@ -94,41 +95,60 @@ class BigDisplaySystem extends GameSystemWithFilter {
         for (let entity of entities) {
             const displayComp = entity.components.BigDisplay;
             if (!displayComp) continue;
+            const pinsComp = entity.components.WiredPins;
+
+            let inPin = null;
+            let outPin = null;
+            if (displayComp.type === enumBigDisplayType.shape) {
+                // Forward sync signal
+                inPin = pinsComp.slots[1];
+                outPin = pinsComp.slots[2];
+                if (!inPin.linkedNetwork) continue;
+                outPin.value = inPin.linkedNetwork.currentValue;
+            }
 
             if (displayComp.type === enumBigDisplayType.color) {
                 // clear display
-                const slots = entity.components.BigDisplay.slots;
-                for (let slot of slots) {
+                for (let slot of displayComp.slots) {
                     slot.value = null;
                 }
             }
 
-            const pinsComp = entity.components.WiredPins;
-            if (displayComp.type === enumBigDisplayType.shape) {
-                // Forward sync signal
-                const inPin = pinsComp.slots[1];
-                const outPin = pinsComp.slots[2];
-                if (!inPin.linkedNetwork) continue;
-                const newValue = isTruthyItem(inPin.linkedNetwork.currentValue)
-                    ? BOOL_TRUE_SINGLETON
-                    : BOOL_FALSE_SINGLETON;
-                outPin.value = newValue;
+            if (
+                displayComp.type === enumBigDisplayType.shape &&
+                inPin.linkedNetwork &&
+                isTruthyItem(inPin.linkedNetwork.currentValue)
+            ) {
+                // sync display
+                displayComp.index = 0;
+                for (let slot of displayComp.slots) {
+                    slot.value = slot.data;
+                    slot.data = null;
+                }
             }
 
-            const valueNetwork = pinsComp.slots[0].linkedNetwork;
-            if (!valueNetwork || !valueNetwork.hasValue()) continue;
-            const inputValue = this.getDisplayItem(valueNetwork.currentValue);
-            if (inputValue.getItemType() !== "shape") continue;
+            const valuePin = pinsComp.slots[0];
+            let inputValue = null;
+            if (valuePin.linkedNetwork && valuePin.linkedNetwork.hasValue()) {
+                inputValue = this.getDisplayItem(valuePin.linkedNetwork.currentValue);
+            }
 
             if (displayComp.type === enumBigDisplayType.color) {
+                if (!inputValue || inputValue.getItemType() !== "shape") continue;
                 // map input value to display slots
-                const slots = entity.components.BigDisplay.slots;
-                for (let slot of slots) {
+                for (let slot of displayComp.slots) {
                     const idx = DISPLAY_SIZE.x * slot.pos.y + slot.pos.x;
                     const layer = inputValue.definition.layers[Math.floor(idx / 4)];
                     if (!layer) continue;
                     slot.value = layer[idx % 4];
                 }
+            }
+
+            if (displayComp.type === enumBigDisplayType.shape) {
+                const index = displayComp.index;
+                displayComp.index = (index + 1) % (DISPLAY_SIZE.x * DISPLAY_SIZE.y);
+                if (!inputValue || inputValue.getItemType() !== "shape") continue;
+                displayComp.slots[index].data = inputValue;
             }
         }
     }
@@ -137,15 +157,15 @@ class BigDisplaySystem extends GameSystemWithFilter {
         const entities = chunk.containedEntitiesByLayer.regular;
         for (let entity of entities) {
             if (!entity || !entity.components.BigDisplay) continue;
-            const displayComp = entity.components.BigDisplay;
             const slots = entity.components.BigDisplay.slots;
             for (let slot of slots) {
                 const tile = entity.components.StaticMapEntity.localTileToWorld(slot.pos);
                 if (!chunk.tileSpaceRectangle.containsPoint(tile.x, tile.y)) continue;
                 const worldPos = tile.toWorldSpaceCenterOfTile();
                 const value = slot.value;
-                if (displayComp.type === enumBigDisplayType.color) {
-                    if (!value || value.color === enumColors.uncolored) continue;
+                if (!value) continue;
+                if (value.getItemType() === "color") {
+                    if (value.color === enumColors.uncolored) continue;
                     this.displaySprites[value.color].drawCachedCentered(
                         parameters,
                         worldPos.x,
@@ -153,8 +173,8 @@ class BigDisplaySystem extends GameSystemWithFilter {
                         globalConfig.tileSize
                     );
                 }
-                if (displayComp.type === enumBigDisplayType.shape) {
-                    continue;
+                if (value.getItemType() === "shape") {
+                    value.drawItemCenteredClipped(worldPos.x, worldPos.y, parameters, 30);
                 }
             }
         }
