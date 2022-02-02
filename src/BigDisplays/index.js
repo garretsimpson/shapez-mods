@@ -130,11 +130,22 @@ class BigDisplaySystem extends GameSystemWithFilter {
         const displayComp = entity.components.BigDisplay;
         const pinsComp = entity.components.WiredPins;
 
+        // If there are multiple BigDisplays connected, find the first inPin.
+        const myUid = entity.uid;
+        let inPin = pinsComp.slots[1];
+        let looking = true;
+        while(looking) {
+            if (!inPin.linkedNetwork || !inPin.linkedNetwork.providers) break;
+            const nextEntity = inPin.linkedNetwork.providers[0].entity;
+            if (!nextEntity.components.BigDisplay) break;
+            inPin = nextEntity.components.WiredPins.slots[1];
+            if (nextEntity.uid == myUid) break;  // loop detection
+        }
+
         // Forward sync signal
-        const inPin = pinsComp.slots[1];
-        const outPin = pinsComp.slots[2];
         let sync = false;
         if (inPin.linkedNetwork) {
+            const outPin = pinsComp.slots[2];
             outPin.value = inPin.linkedNetwork.currentValue;
             sync = isTruthyItem(inPin.linkedNetwork.currentValue);
         }
