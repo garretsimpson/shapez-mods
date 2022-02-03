@@ -56,9 +56,9 @@ if (fs.existsSync("./types.d.ts")) {
 function generateEntries(mods) {
     for (const dir of mods) {
         const jsonPath = path.resolve("./src", dir, "mod.json");
-        const { entry } = require(jsonPath);
+        const { entry, version } = require(jsonPath);
 
-        config.entry[dir] = path.resolve("./src", dir, entry);
+        config.entry[`${dir}_${version}`] = path.resolve("./src", dir, entry);
     }
 }
 module.exports = config;
