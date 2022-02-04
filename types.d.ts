@@ -35,10 +35,6 @@ declare function tick(): void;
 declare const bgFps: 30;
 declare const desiredMsDelay: number;
 declare let lastTick: number;
-declare module "core/config.local" {
-    var _default: {};
-    export default _default;
-}
 declare module "core/config" {
     export const IS_DEBUG: boolean;
     export const SUPPORT_TOUCH: false;
@@ -2149,6 +2145,7 @@ declare module "game/item_resolver" {
         $: string;
         data: any;
     }): any;
+    export const MODS_ADDITIONAL_ITEMS: {};
     export const typeItemSingleton: import("savegame/serialization_data_types").TypeClass;
 }
 declare module "game/belt_path" {
@@ -9068,6 +9065,11 @@ declare module "mods/mod_interface" {
         }): void;
         registerTranslations(language: any, translations: any): void;
         /**
+         * @param {typeof BaseItem} item
+         * @param {(itemData: any) => BaseItem} resolver
+         */
+        registerItem(item: typeof BaseItem, resolver: (itemData: any) => BaseItem): void;
+        /**
          *
          * @param {typeof Component} component
          */
@@ -9305,6 +9307,7 @@ declare module "mods/mod_interface" {
     export type afterPrams<F extends (...args: any[]) => any, P> = (args_0: any, args_1: P) => ReturnType<F>;
     export type extendsPrams<F extends (...args: any[]) => any> = (args_0: any, ...args_1: any[]) => ReturnType<F>;
     import { ModLoader } from "mods/modloader";
+    import { BaseItem } from "game/base_item";
     import { Component } from "game/component";
     import { GameSystem } from "game/game_system";
     import { ModMetaBuilding } from "mods/mod_meta_building";
@@ -11543,8 +11546,8 @@ declare module "savegame/serialization" {
          * in non-dev builds
          */
         constructor(...args: any[]);
-        /** @returns {object} */
-        serialize(): object;
+        /** @returns {object | string | number} */
+        serialize(): object | string | number;
         /**
          * @param {any} data
          * @param {import("./savegame_serializer").GameRoot} root
