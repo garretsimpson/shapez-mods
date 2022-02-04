@@ -35,6 +35,10 @@ declare function tick(): void;
 declare const bgFps: 30;
 declare const desiredMsDelay: number;
 declare let lastTick: number;
+declare module "core/config.local" {
+    var _default: {};
+    export default _default;
+}
 declare module "core/config" {
     export const IS_DEBUG: boolean;
     export const SUPPORT_TOUCH: false;
