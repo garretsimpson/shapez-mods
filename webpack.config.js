@@ -1,3 +1,9 @@
+/**
+ * Webpack config for shapez.io mods
+ * Author: dengr1065
+ * https://github.com/dengr1065/shapez.io-mods
+ */
+
 /* eslint-disable */
 const { DefinePlugin } = require("webpack");
 const fs = require("fs");
