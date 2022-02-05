@@ -3,7 +3,7 @@
     "name": "Blueprint strings",
     "author": "FatcatX and SkimnerPhi",
     "version": "1.2.0",
-    "description": "Generate a sharable string for when you copy & paste designs. Strings are exported to clipboard automatically on blueprint copy, use Ctrl-V to import.",
+    "description": "Generate a sharable string in the system clipboard when you copy and paste blueprints.",
     "website": "https://github.com/garretsimpson/shapez-mods",
     "minimumGameVersion": ">=1.5.0",
     "doesNotAffectSavegame": true,
