@@ -4,7 +4,6 @@
  */
 
 import { compressX64, decompressX64 } from "core/lzstring";
-import { Blueprint } from "game/blueprint";
 import { SerializerInternal } from "savegame/serializer_internal";
 
 const BP_PREFIX = ">>>";
@@ -19,7 +18,7 @@ const COLORS = ["uncolored", "blue", "green", "cyan", "red", "purple", "yellow",
 const SHAPES = ["C", "R", "W", "S"];
 
 export class BlueprintPacker {
-    static serializeBlueprintString(entities) {
+    static packEntities(entities) {
         let minPos = entities.reduce(
             (r, b) => [
                 Math.min(r[0], b.components.StaticMapEntity.origin.x),
@@ -81,7 +80,7 @@ export class BlueprintPacker {
         }
     }
 
-    static deserializeBlueprintString(root, blueprint) {
+    static unpackEntities(root, blueprint) {
         try {
             if (!blueprint.startsWith(BP_PREFIX) || !blueprint.endsWith(BP_SUFFIX)) {
                 throw "Not a blueprint string";
@@ -141,24 +140,60 @@ export class BlueprintPacker {
                 }
             }
 
-            const serializer = new SerializerInternal();
-
             const buildingEntities = buildings.map(b => {
                 b.components.StaticMapEntity.origin.x -= (maxPos[0] / 2) | 0;
                 b.components.StaticMapEntity.origin.y -= (maxPos[1] / 2) | 0;
 
-                const result = serializer.deserializeEntityNoPlace(root, b);
-
+                const result = new SerializerInternal().deserializeEntityNoPlace(root, b);
                 if (typeof result === "string") {
                     throw new Error(result);
                 }
-
                 return result;
             });
-
-            return new Blueprint(buildingEntities);
+            return buildingEntities;
         } catch (ex) {
             console.error("Invalid blueprint data:", ex.message);
+        }
+    }
+
+    static writeValue(value, type) {
+        if (type === "boolean_item") {
+            return [value & 1];
+        } else if (type === "color") {
+            return [(COLORS.indexOf(value) & 0b0111) | 0b1000];
+        } else if (type === "shape") {
+            // remove layer separators
+            value = value.replaceAll(":", "");
+            // pad to 2 or 4 layers, split into array of quads
+            value = value.padEnd(value.length > 16 ? 32 : 16, "-").match(/(.{2})/g);
+
+            let head = [];
+            // generate bit field for enabled quads
+            for (let i = 0; i < value.length; i++) {
+                head[Math.floor(i / 8)] = (head[Math.floor(i / 8)] << 1) | (value[i] !== "--");
+            }
+
+            // remove all empty quads
+            value = value.filter(x => x !== "--");
+
+            let data = [];
+            let pos = 0;
+            for (let i = 0; i < value.length; i++) {
+                const shape = SHAPES.indexOf(value[i].charAt(0));
+                const color = COLORS.findIndex(x => x.startsWith(value[i].charAt(1)));
+                const pair = (color << 2) | shape;
+
+                // shift quad data into position and add to buffer
+                const offset = (pos % 8) - 3;
+                data[Math.floor(pos / 8)] |= offset < 0 ? pair << -offset : pair >> offset;
+                if (offset > 0) {
+                    // if there is not enough space on the first byte, overflow remaining bits to the second byte
+                    data[Math.floor(pos / 8) + 1] |= (pair << (8 - offset)) & 0xff;
+                }
+                pos += 5;
+            }
+
+            return [...head, ...data];
         }
     }
 
@@ -237,46 +272,5 @@ export class BlueprintPacker {
             },
             pos,
         ];
-    }
-
-    static writeValue(value, type) {
-        if (type === "boolean_item") {
-            return [value & 1];
-        } else if (type === "color") {
-            return [(COLORS.indexOf(value) & 0b0111) | 0b1000];
-        } else if (type === "shape") {
-            // remove layer separators
-            value = value.replaceAll(":", "");
-            // pad to 2 or 4 layers, split into array of quads
-            value = value.padEnd(value.length > 16 ? 32 : 16, "-").match(/(.{2})/g);
-
-            let head = [];
-            // generate bit field for enabled quads
-            for (let i = 0; i < value.length; i++) {
-                head[Math.floor(i / 8)] = (head[Math.floor(i / 8)] << 1) | (value[i] !== "--");
-            }
-
-            // remove all empty quads
-            value = value.filter(x => x !== "--");
-
-            let data = [];
-            let pos = 0;
-            for (let i = 0; i < value.length; i++) {
-                const shape = SHAPES.indexOf(value[i].charAt(0));
-                const color = COLORS.findIndex(x => x.startsWith(value[i].charAt(1)));
-                const pair = (color << 2) | shape;
-
-                // shift quad data into position and add to buffer
-                const offset = (pos % 8) - 3;
-                data[Math.floor(pos / 8)] |= offset < 0 ? pair << -offset : pair >> offset;
-                if (offset > 0) {
-                    // if there is not enough space on the first byte, overflow remaining bits to the second byte
-                    data[Math.floor(pos / 8) + 1] |= (pair << (8 - offset)) & 0xff;
-                }
-                pos += 5;
-            }
-
-            return [...head, ...data];
-        }
     }
 }

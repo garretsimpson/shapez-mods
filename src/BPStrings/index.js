@@ -2,22 +2,33 @@ import { Vector } from "core/vector";
 import { getBuildingDataFromCode } from "game/building_codes";
 import { HUDBlueprintPlacer } from "game/hud/parts/blueprint_placer";
 import { Mod } from "mods/mod";
-import { SOUNDS } from "platform/sound";
+import { Blueprint } from "game/blueprint";
 import { SerializerInternal } from "savegame/serializer_internal";
 import { BlueprintPacker } from "./BlueprintPacker";
 
 import META from "./mod.json";
 
-const SerializerInternalExtension = {
+const HUDBlueprintPlacerExt = ({ $old }) => ({
+    createBlueprintFromBuildings(...args) {
+        $old.createBlueprintFromBuildings.call(this, ...args);
+        BPStrings.copyToClipboard(this.currentBlueprint.get());
+    },
+
+    async pasteBlueprint(...args) {
+        const blueprint = await BPStrings.pasteFromClipboard(this.root);
+        this.lastBlueprintUsed = blueprint || this.lastBlueprintUsed;
+        $old.pasteBlueprint.call(this, ...args);
+    },
+});
+
+const SerializerInternalExt = () => ({
     deserializeEntityNoPlace(root, payload) {
         const staticData = payload.components.StaticMapEntity;
         window.assert(staticData, "entity has no static data");
 
         const code = staticData.code;
         const data = getBuildingDataFromCode(code);
-
         const metaBuilding = data.metaInstance;
-
         const entity = metaBuilding.createEntity({
             root,
             origin: Vector.fromSerializedObject(staticData.origin),
@@ -26,51 +37,73 @@ const SerializerInternalExtension = {
             rotationVariant: data.rotationVariant,
             variant: data.variant,
         });
-
         entity.uid = payload.uid;
 
         let errorStatus = this.deserializeComponents(root, entity, payload.components);
         return errorStatus || entity;
     },
-};
+});
 
 class BPStrings extends Mod {
-    async handleCopy() {
-        const data = new SerializerInternal().serializeEntityArray(this.currentBlueprint.get().entities);
+    static serializeOld(entities) {
+        let data = new SerializerInternal().serializeEntityArray(entities);
+        for (let entry of data) {
+            delete entry.uid;
+            delete entry.components.WiredPins;
+            delete entry.components.ItemEjector;
+            delete entry.components.ItemProcessor;
+            delete entry.components.UndergroundBelt;
+        }
+        return data;
+    }
+
+    static serialize(entities) {
+        const data = new SerializerInternal().serializeEntityArray(entities);
+        const bpString = BlueprintPacker.packEntities(data);
+        return bpString;
+    }
+
+    static deserialize(root, data) {
+        const result = BlueprintPacker.unpackEntities(root, data);
+        return new Blueprint(result);
+    }
+
+    static async copyToClipboard(blueprint) {
+        const data = BPStrings.serialize(blueprint.entities);
         console.debug(data);
         try {
-            const bpString = BlueprintPacker.serializeBlueprintString(data);
-            await navigator.clipboard.writeText(bpString);
-            this.root.soundProxy.playUi(SOUNDS.copy);
+            await navigator.clipboard.writeText(data);
+            // this.root.soundProxy.playUi(SOUNDS.copy);
             console.debug("Copied blueprint to clipboard");
         } catch (ex) {
             console.error("Copy to clipboard failed:", ex.message);
         }
     }
 
-    handlePaste(event) {
+    static pasteFromClipboard(event, root) {
         if (this.root.app.inputMgr.getTopReciever().context !== "state-InGameState") return;
         let blueprint;
         try {
             let data = event.clipboardData.getData("text").trim();
-            blueprint = BlueprintPacker.deserializeBlueprintString(this.root, data);
+            blueprint = BPStrings.deserialize(root, data);
             console.debug("Received data from clipboard");
         } catch (ex) {
             console.error("Paste from clipboard failed:", ex.message);
         }
-
-        this.lastBlueprintUsed = blueprint || this.lastBlueprintUsed;
-        this.pasteBlueprint();
+        return blueprint;
     }
 
     init() {
-        this.modInterface.extendClass(SerializerInternal, SerializerInternalExtension);
+        console.debug("##### Init mod:", META.id);
 
-        this.modInterface.runAfterMethod(HUDBlueprintPlacer, "initialize", function () {
-            document.addEventListener("paste", ev => this.handlePaste.bind(this, ev));
-        });
+        this.modInterface.extendClass(SerializerInternal, SerializerInternalExt);
+        this.modInterface.extendClass(HUDBlueprintPlacer, HUDBlueprintPlacerExt);
 
-        this.modInterface.runAfterMethod(HUDBlueprintPlacer, "createBlueprintFromBuildings", this.handleCopy);
+        // this.modInterface.runAfterMethod(HUDBlueprintPlacer, "initialize", function () {  // FIXME
+        //     document.addEventListener("paste", ev => this.handlePaste.bind(this, ev));
+        // });
+
+        // this.modInterface.runAfterMethod(HUDBlueprintPlacer, "createBlueprintFromBuildings", this.handleCopy);
     }
 }
 
