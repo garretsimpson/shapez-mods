@@ -7,5 +7,6 @@
     "website": "https://github.com/garretsimpson/shapez-mods",
     "minimumGameVersion": ">=1.5.0",
     "settings": { "gamePaused": false },
+    "doesNotAffectSavegame": true,
     "entry": "./index.js"
 }
