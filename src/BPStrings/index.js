@@ -14,8 +14,8 @@ const HUDBlueprintPlacerExt = ({ $old }) => ({
         BPStrings.copyToClipboard(this.currentBlueprint.get());
     },
 
-    async pasteBlueprint(...args) {
-        const blueprint = await BPStrings.pasteFromClipboard(this.root);
+    pasteBlueprint(...args) {
+        const blueprint = BPStrings.pasteFromClipboard(this.root);
         this.lastBlueprintUsed = blueprint || this.lastBlueprintUsed;
         $old.pasteBlueprint.call(this, ...args);
     },
@@ -64,13 +64,13 @@ class BPStrings extends Mod {
     }
 
     static deserialize(root, data) {
-        const result = BlueprintPacker.unpackEntities(root, data);
-        return new Blueprint(result);
+        const entities = BlueprintPacker.unpackEntities(root, data);
+        return new Blueprint(entities);
     }
 
     static async copyToClipboard(blueprint) {
         const data = BPStrings.serialize(blueprint.entities);
-        console.debug(data);
+        console.debug("Copy to clipboard:", data);
         try {
             await navigator.clipboard.writeText(data);
             // this.root.soundProxy.playUi(SOUNDS.copy);
@@ -80,17 +80,27 @@ class BPStrings extends Mod {
         }
     }
 
-    static pasteFromClipboard(event, root) {
-        if (this.root.app.inputMgr.getTopReciever().context !== "state-InGameState") return;
+    static pasteFromClipboard(root) {
         let blueprint;
         try {
-            let data = event.clipboardData.getData("text").trim();
+            const data = BPStrings.getClipboard().trim();
+            console.debug("Received data from clipboard:", data);
             blueprint = BPStrings.deserialize(root, data);
-            console.debug("Received data from clipboard");
-        } catch (ex) {
-            console.error("Paste from clipboard failed:", ex.message);
+        } catch (e) {
+            console.error("Paste from clipboard failed:", e);
         }
         return blueprint;
+    }
+
+    static getClipboard() {
+        var pasteTarget = document.createElement("div");
+        pasteTarget.contentEditable = true;
+        var actElem = document.activeElement.appendChild(pasteTarget).parentNode;
+        pasteTarget.focus();
+        document.execCommand("Paste", null, null);
+        var paste = pasteTarget.innerText;
+        actElem.removeChild(pasteTarget);
+        return paste;
     }
 
     init() {
@@ -98,12 +108,6 @@ class BPStrings extends Mod {
 
         this.modInterface.extendClass(SerializerInternal, SerializerInternalExt);
         this.modInterface.extendClass(HUDBlueprintPlacer, HUDBlueprintPlacerExt);
-
-        // this.modInterface.runAfterMethod(HUDBlueprintPlacer, "initialize", function () {  // FIXME
-        //     document.addEventListener("paste", ev => this.handlePaste.bind(this, ev));
-        // });
-
-        // this.modInterface.runAfterMethod(HUDBlueprintPlacer, "createBlueprintFromBuildings", this.handleCopy);
     }
 }
 

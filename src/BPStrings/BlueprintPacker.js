@@ -81,79 +81,75 @@ export class BlueprintPacker {
     }
 
     static unpackEntities(root, blueprint) {
-        try {
-            if (!blueprint.startsWith(BP_PREFIX) || !blueprint.endsWith(BP_SUFFIX)) {
-                throw "Not a blueprint string";
-            }
-
-            // remove >>>, format flag, and <<<
-            let data = blueprint.substring(BP_PREFIX.length + 1, blueprint.length - BP_SUFFIX.length);
-            // convert encoded string to raw string
-            switch (blueprint.charAt(BP_PREFIX.length)) {
-                case BP_FLAG_B64:
-                    data = atob(data);
-                    break;
-                case BP_FLAG_COMPRESSED:
-                    data = decompressX64(data);
-                    break;
-                default:
-                    throw "Unknown blueprint format";
-            }
-
-            let maxPos = [0, 0];
-            let buildings = [];
-            for (let idx = 0; idx < data.length; ) {
-                // consume 3 bytes for chunk header
-                let chunkX = data.charCodeAt(idx++);
-                let chunkY = data.charCodeAt(idx++);
-                let chunkBuildings = data.charCodeAt(idx++);
-
-                for (let bldg = 0; bldg < chunkBuildings; bldg++) {
-                    // consume 3 bytes for each building
-                    let pos = data.charCodeAt(idx++);
-                    let rot = data.charCodeAt(idx++);
-                    let code = data.charCodeAt(idx++);
-
-                    let building = {
-                        uid: 0,
-                        components: {
-                            StaticMapEntity: {
-                                origin: {
-                                    x: ((pos >> 4) & 0xf) + 16 * chunkX,
-                                    y: (pos & 0xf) + 16 * chunkY,
-                                },
-                                rotation: ((rot >> 4) & 0xf) * 90,
-                                originalRotation: (rot & 0xf) * 90,
-                                code: code,
-                            },
-                        },
-                    };
-                    if (code === CONSTANT_SIGNAL) {
-                        [building.components.ConstantSignal, idx] = BlueprintPacker.readValue(data, idx);
-                    }
-
-                    maxPos = [
-                        Math.max(maxPos[0], building.components.StaticMapEntity.origin.x),
-                        Math.max(maxPos[1], building.components.StaticMapEntity.origin.y),
-                    ];
-                    buildings.push(building);
-                }
-            }
-
-            const buildingEntities = buildings.map(b => {
-                b.components.StaticMapEntity.origin.x -= (maxPos[0] / 2) | 0;
-                b.components.StaticMapEntity.origin.y -= (maxPos[1] / 2) | 0;
-
-                const result = new SerializerInternal().deserializeEntityNoPlace(root, b);
-                if (typeof result === "string") {
-                    throw new Error(result);
-                }
-                return result;
-            });
-            return buildingEntities;
-        } catch (ex) {
-            console.error("Invalid blueprint data:", ex.message);
+        if (!blueprint.startsWith(BP_PREFIX) || !blueprint.endsWith(BP_SUFFIX)) {
+            throw "Not a blueprint string";
         }
+
+        // remove >>>, format flag, and <<<
+        let data = blueprint.substring(BP_PREFIX.length + 1, blueprint.length - BP_SUFFIX.length);
+        // convert encoded string to raw string
+        switch (blueprint.charAt(BP_PREFIX.length)) {
+            case BP_FLAG_B64:
+                data = atob(data);
+                break;
+            case BP_FLAG_COMPRESSED:
+                data = decompressX64(data);
+                break;
+            default:
+                throw "Unknown blueprint format";
+        }
+
+        let maxPos = [0, 0];
+        let buildings = [];
+        for (let idx = 0; idx < data.length; ) {
+            // consume 3 bytes for chunk header
+            let chunkX = data.charCodeAt(idx++);
+            let chunkY = data.charCodeAt(idx++);
+            let chunkBuildings = data.charCodeAt(idx++);
+
+            for (let bldg = 0; bldg < chunkBuildings; bldg++) {
+                // consume 3 bytes for each building
+                let pos = data.charCodeAt(idx++);
+                let rot = data.charCodeAt(idx++);
+                let code = data.charCodeAt(idx++);
+
+                let building = {
+                    uid: 0,
+                    components: {
+                        StaticMapEntity: {
+                            origin: {
+                                x: ((pos >> 4) & 0xf) + 16 * chunkX,
+                                y: (pos & 0xf) + 16 * chunkY,
+                            },
+                            rotation: ((rot >> 4) & 0xf) * 90,
+                            originalRotation: (rot & 0xf) * 90,
+                            code: code,
+                        },
+                    },
+                };
+                if (code === CONSTANT_SIGNAL) {
+                    [building.components.ConstantSignal, idx] = BlueprintPacker.readValue(data, idx);
+                }
+
+                maxPos = [
+                    Math.max(maxPos[0], building.components.StaticMapEntity.origin.x),
+                    Math.max(maxPos[1], building.components.StaticMapEntity.origin.y),
+                ];
+                buildings.push(building);
+            }
+        }
+
+        const buildingEntities = buildings.map(b => {
+            b.components.StaticMapEntity.origin.x -= (maxPos[0] / 2) | 0;
+            b.components.StaticMapEntity.origin.y -= (maxPos[1] / 2) | 0;
+
+            const result = new SerializerInternal().deserializeEntityNoPlace(root, b);
+            if (typeof result === "string") {
+                throw new Error(result);
+            }
+            return result;
+        });
+        return buildingEntities;
     }
 
     static writeValue(value, type) {
