@@ -4,6 +4,7 @@
     "description": "Shapez Mods",
     "repository": "https://github.com/garretsimpson/shapez-mods",
     "author": "FatCatX <garretsimpson@yahoo.com>",
+    "license": "MIT",
     "scripts": {
         "build": "webpack --node-env production",
         "watch": "webpack --node-env development --watch"
