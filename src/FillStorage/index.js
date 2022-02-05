@@ -9,7 +9,7 @@ const KEYID = {
     fillStorages: "fill_storages",
 };
 
-const MassSelectorExtention = ({ $old }) => ({
+const MassSelectorExt = ({ $old }) => ({
     initialize() {
         $old.initialize.call(this);
         this.root.keyMapper.getBinding(KEYMAPPINGS.mods[KEYID.fillStorages]).add(this.fillStorages, this);
@@ -51,7 +51,7 @@ class FillStorage extends Mod {
             modifiers: {},
         });
 
-        this.modInterface.extendClass(HUDMassSelector, MassSelectorExtention);
+        this.modInterface.extendClass(HUDMassSelector, MassSelectorExt);
     }
 }
 

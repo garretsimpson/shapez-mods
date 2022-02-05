@@ -6,13 +6,13 @@ import { Mod } from "mods/mod";
 
 import META from "./mod.json";
 
-const GameHUDExtention = ({ $old }) => ({
+const GameHUDExt = ({ $old }) => ({
     shouldPauseGame() {
         return $old.shouldPauseGame.call(this) || META.settings.gamePaused;
     },
 });
 
-const GameCoreExtention = ({ $old }) => ({
+const GameCoreExt = ({ $old }) => ({
     initializeRoot(...args) {
         $old.initializeRoot.call(this, ...args);
         this.root.keyMapper.getBinding(KEYMAPPINGS.mods["step"]).add(this.stepTick, this);
@@ -51,8 +51,8 @@ class PauseAndStep extends Mod {
             repeated: true,
         });
 
-        this.modInterface.extendClass(GameHUD, GameHUDExtention);
-        this.modInterface.extendClass(GameCore, GameCoreExtention);
+        this.modInterface.extendClass(GameHUD, GameHUDExt);
+        this.modInterface.extendClass(GameCore, GameCoreExt);
     }
 }
 
