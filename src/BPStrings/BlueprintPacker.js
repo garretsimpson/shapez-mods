@@ -1,6 +1,29 @@
 /**
  * Shapez blueprint packing
  * Author: SkimnerPhi
+ *
+ * Packed data syntax
+ * - The input data is a list of entities from the game.
+ * - These entities are grouped by location into chunks (16x16 tiles).
+ * - Each chunk is encoded as <chunk-header><building-data>...
+ * - The <chunk-header> is 3 bytes:
+ *   - 2 bytes <x><y> for the chunk offset.
+ *   - 1 byte <n> for the number of buildings contained in the chunk.
+ * - The <building-data> is encoded as <offset><rotation><code>[<signal>]
+ *   - 1 byte building <offset> encoded as: y << 4 | x.  Example: (0, 12) is 192
+ *   - 1 byte <rotation> encoded as (<rotation> / 90) << 4 | <original-rotation> / 90.
+ *   - 1 byte for the building <code>, which is the internal id used by the game.
+ * - Further bytes are only if the building is a constant signal, using the following:
+ *
+ * Signal compression
+ * 0000 000X : boolean
+ * 0000 1RGB : color
+ * AAAA 0000 : 1 layer shape header
+ * AAAA BBBB CCCC DDDD : 2-4 layer shape header
+ * ssRGB : each quad
+ *
+ * Example
+ * CpCp--Sy would be 1101 0000 00101 00101 11110
  */
 
 import { compressX64, decompressX64 } from "core/lzstring";
@@ -152,12 +175,23 @@ export class BlueprintPacker {
         return buildingEntities;
     }
 
+    static writeString(value) {
+        return [value.length, ...value];
+    }
+
+    static readString(data) {
+        const result = "";
+        return result;
+    }
+
     static writeValue(value, type) {
         if (type === "boolean_item") {
             return [value & 1];
-        } else if (type === "color") {
+        }
+        if (type === "color") {
             return [(COLORS.indexOf(value) & 0b0111) | 0b1000];
-        } else if (type === "shape") {
+        }
+        if (type === "shape") {
             // remove layer separators
             value = value.replaceAll(":", "");
             // pad to 2 or 4 layers, split into array of quads
