@@ -67,8 +67,8 @@ class BPStrings extends Mod {
     }
 
     static deserialize(root, data) {
-        console.debug("##### data in:", data);
         const entities = BlueprintPacker.unpackEntities(root, data);
+        console.debug("##### data in:", entities);
         return new Blueprint(entities);
     }
 

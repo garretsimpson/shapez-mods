@@ -58,6 +58,7 @@ export class BlueprintPacker {
     }
 
     static packEntities(entities) {
+        BlueprintPacker.symbolTable = [];
         let minPos = entities.reduce(
             (r, b) => [
                 Math.min(r[0], b.components.StaticMapEntity.origin.x),
@@ -147,9 +148,18 @@ export class BlueprintPacker {
                 throw "Unknown blueprint format";
         }
 
+        // Get symbol table
+        let idx = 0;
+        const hb = data.charCodeAt(idx++);
+        const lb = data.charCodeAt(idx++);
+        const len = (hb << 8) | lb;
+        const symbols = data.substring(idx, idx + len).split("\0");
+        console.debug("##### symbols:", symbols);
+        idx += len;
+
         let maxPos = [0, 0];
         let buildings = [];
-        for (let idx = 0; idx < data.length; ) {
+        for (; idx < data.length; ) {
             // consume 3 bytes for chunk header
             let chunkX = data.charCodeAt(idx++);
             let chunkY = data.charCodeAt(idx++);
@@ -160,6 +170,7 @@ export class BlueprintPacker {
                 let pos = data.charCodeAt(idx++);
                 let rot = data.charCodeAt(idx++);
                 let code = data.charCodeAt(idx++);
+                if (code == 0) code = symbols[data.charCodeAt(idx++)];
 
                 let building = {
                     uid: 0,
@@ -198,15 +209,6 @@ export class BlueprintPacker {
             return result;
         });
         return buildingEntities;
-    }
-
-    static writeString(value) {
-        return [value.length, ...value];
-    }
-
-    static readString(data) {
-        const result = "";
-        return result;
     }
 
     static writeValue(value, type) {
