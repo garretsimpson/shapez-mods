@@ -16,6 +16,7 @@ function main(args) {
         zipper.sync.zip(rawFile).compress().save(zipFile);
     } catch (e) {
         console.log("Problem zipping file:", rawFile);
+        return;
     }
     console.log("Created file:", zipFile);
 }
