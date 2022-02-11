@@ -41,6 +41,22 @@ const COLORS = ["uncolored", "blue", "green", "cyan", "red", "purple", "yellow",
 const SHAPES = ["C", "R", "W", "S"];
 
 export class BlueprintPacker {
+    static symbolTable = [];
+
+    static getCode(code) {
+        if (typeof code === "number" && Number.isInteger(code) && code != 0) return [code];
+
+        let result = [0];
+        const idx = BlueprintPacker.symbolTable.indexOf(code);
+        if (idx < 0) {
+            result.push(BlueprintPacker.symbolTable.length);
+            BlueprintPacker.symbolTable.push(code);
+        } else {
+            result.push(idx);
+        }
+        return result;
+    }
+
     static packEntities(entities) {
         let minPos = entities.reduce(
             (r, b) => [
@@ -69,12 +85,13 @@ export class BlueprintPacker {
                 chunks.push(chunk);
             }
 
-            // 3 bytes are used for all buildings
+            // 3 or 4 bytes are used for all buildings
             // position, rotation, and ID
+            const code = BlueprintPacker.getCode(sme.code);
             let building = [
                 (x % 16 << 4) | y % 16,
                 ((sme.rotation / 90) << 4) | (sme.originalRotation / 90),
-                sme.code,
+                ...code,
             ];
             let signal = [];
             if (sme.code === CONSTANT_SIGNAL) {
@@ -90,10 +107,18 @@ export class BlueprintPacker {
         // finish by adding the building count to the chunk headers
         chunks.forEach(c => c[0].push(c.length - 1));
 
+        // construct the output data
+        let output = "";
+        console.debug("##### symbols:", BlueprintPacker.symbolTable);
+        const symbols = BlueprintPacker.symbolTable.join("\0");
+        const len = symbols.length;
+        output += String.fromCharCode(len >>> 8, len & 0xff);
+        output += symbols;
+
+        output += String.fromCharCode(...chunks.flat(Infinity));
         // convert to both formats & output the shorter option
         // strings will always start with >>> and a flag indicating format
         //   and end with <<<
-        let output = String.fromCharCode(...chunks.flat(Infinity));
         let compressedOutput = compressX64(output);
         let b64Output = btoa(output);
         if (compressedOutput.length < b64Output.length) {
