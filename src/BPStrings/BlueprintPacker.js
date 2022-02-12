@@ -39,18 +39,28 @@ import { gBuildingVariants } from "game/building_codes";
 const BP_PREFIX = ">>>";
 const BP_SUFFIX = "<<<";
 
-const BP_FLAG_B64 = "0";
-const BP_FLAG_COMPRESSED = "1";
-
 const CONSTANT_SIGNAL = 31;
-const NUL = "\0";
 
 const COLORS = ["uncolored", "blue", "green", "cyan", "red", "purple", "yellow", "white"];
 const SHAPES = ["C", "R", "W", "S"];
 
+const MAX_WIDTH = 64;
+const NUL = "\0";
+
+const CONFIGS = {
+    "v0-b64": { id: "0", b64: true },
+    "v0-compress": { id: "1", compress: true },
+    "v1-b64": { id: "2", b64: true, symbols: true },
+    "v1-compress": { id: "3", compress: true, symbols: true },
+};
+
 export class BlueprintPacker {
     constructor() {
         this.symbolTable = [];
+        this.configTable = {};
+        for (let config of Object.values(CONFIGS)) {
+            this.configTable[config.id] = config;
+        }
     }
 
     getCode(code) {
@@ -67,6 +77,11 @@ export class BlueprintPacker {
         return result;
     }
 
+    /**
+     * Pack entities
+     * @param {Array<Entity>} entities
+     * @returns {String}
+     */
     packEntities(entities) {
         this.symbolTable = [];
         let minPos = entities.reduce(
@@ -120,52 +135,76 @@ export class BlueprintPacker {
 
         // construct the output data
         let output = "";
+
+        // Insert the symbol table
         console.debug("##### symbols:", this.symbolTable);
         const symbols = this.symbolTable.join(NUL);
         const len = symbols.length;
         output += String.fromCharCode(len >>> 8, len & 0xff);
         output += symbols;
 
+        // flatten the chunk data
         output += String.fromCharCode(...chunks.flat(Infinity));
         // convert to both formats & output the shorter option
-        // strings will always start with >>> and a flag indicating format
-        //   and end with <<<
         let compressedOutput = compressX64(output);
         let b64Output = btoa(output);
+        // ouput strings will always start with >>> and a flag indicating format and end with <<<
+        output = BP_PREFIX;
         if (compressedOutput.length < b64Output.length) {
-            return BP_PREFIX + BP_FLAG_COMPRESSED + compressedOutput + BP_SUFFIX;
+            output += CONFIGS["v1-compress"].id + compressedOutput;
         } else {
-            return BP_PREFIX + BP_FLAG_B64 + b64Output + BP_SUFFIX;
+            output += CONFIGS["v1-b64"].id + b64Output;
         }
+        output += BP_SUFFIX;
+
+        // Format the output
+        const EOL = "\n";
+        let result = "";
+        const numLines = Math.floor(output.length / MAX_WIDTH) + 1;
+        for (let i = 0; i < numLines; i++) {
+            const pos = MAX_WIDTH * i;
+            result += output.substring(pos, pos + MAX_WIDTH) + EOL;
+        }
+        return result;
     }
 
-    unpackEntities(root, blueprint) {
-        if (!blueprint.startsWith(BP_PREFIX) || !blueprint.endsWith(BP_SUFFIX)) {
+    /**
+     * Unpack entities
+     * @param {Object} root
+     * @param {String} dataStr
+     * @returns {Array<Entity>}
+     */
+    unpackEntities(root, dataStr) {
+        // strip newlines
+        const EOL = /\r?\n/;
+        dataStr.replaceAll(EOL, "");
+
+        if (!dataStr.startsWith(BP_PREFIX) || !dataStr.endsWith(BP_SUFFIX)) {
             throw "Not a blueprint string";
         }
 
-        // remove >>>, format flag, and <<<
-        let data = blueprint.substring(BP_PREFIX.length + 1, blueprint.length - BP_SUFFIX.length);
-        // convert encoded string to raw string
-        switch (blueprint.charAt(BP_PREFIX.length)) {
-            case BP_FLAG_B64:
-                data = atob(data);
-                break;
-            case BP_FLAG_COMPRESSED:
-                data = decompressX64(data);
-                break;
-            default:
-                throw "Unknown blueprint format";
+        // parse format flag and data
+        const format = dataStr.charAt(BP_PREFIX.length);
+        let data = dataStr.substring(BP_PREFIX.length + 1, dataStr.length - BP_SUFFIX.length);
+        const config = this.configTable[format];
+        if (!config) {
+            throw `Unknown blueprint string format: ${format}`;
         }
+        // convert encoded string to raw string
+        if (config.b64) data = atob(data);
+        if (config.compress) data = decompressX64(data);
 
-        // Get symbol table
         let idx = 0;
-        const hb = data.charCodeAt(idx++);
-        const lb = data.charCodeAt(idx++);
-        const len = (hb << 8) | lb;
-        const symbols = data.substring(idx, idx + len).split(NUL);
-        console.debug("##### symbols:", symbols);
-        idx += len;
+        let symbols = [];
+        if (config.symbols) {
+            // Get symbol table
+            const hb = data.charCodeAt(idx++);
+            const lb = data.charCodeAt(idx++);
+            const len = (hb << 8) | lb;
+            symbols = data.substring(idx, idx + len).split(NUL);
+            console.debug("##### symbols:", symbols);
+            idx += len;
+        }
 
         let maxPos = [0, 0];
         let buildings = [];
@@ -180,7 +219,7 @@ export class BlueprintPacker {
                 let pos = data.charCodeAt(idx++);
                 let rot = data.charCodeAt(idx++);
                 let code = data.charCodeAt(idx++);
-                if (code == 0) code = symbols[data.charCodeAt(idx++)];
+                if (config.symbols && code == 0) code = symbols[data.charCodeAt(idx++)];
                 if (!gBuildingVariants[code]) {
                     console.log("Skip building:", code);
                     continue;
@@ -269,6 +308,7 @@ export class BlueprintPacker {
 
     readValue(dataIn, pos) {
         let head = dataIn.charCodeAt(pos++);
+        
         if ((head & 0b11111000) === 0b00000000) {
             // 0000 0xxx = boolean
             return [
@@ -278,7 +318,9 @@ export class BlueprintPacker {
                 },
                 pos,
             ];
-        } else if ((head & 0b11111000) === 0b00001000) {
+        }
+
+        if ((head & 0b11111000) === 0b00001000) {
             // 0000 1rgb = color
             return [
                 {
