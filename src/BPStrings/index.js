@@ -59,12 +59,14 @@ class BPStrings extends Mod {
 
     static serialize(entities) {
         const data = new SerializerInternal().serializeEntityArray(entities);
-        const bpString = BlueprintPacker.packEntities(data);
+        // console.debug("##### data out:", data);
+        const bpString = new BlueprintPacker().packEntities(data);
         return bpString;
     }
 
     static deserialize(root, data) {
-        const entities = BlueprintPacker.unpackEntities(root, data);
+        const entities = new BlueprintPacker().unpackEntities(root, data);
+        // console.debug("##### data in:", entities);
         return new Blueprint(entities);
     }
 
