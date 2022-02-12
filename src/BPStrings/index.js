@@ -23,8 +23,6 @@ const HUDBlueprintPlacerExt = ({ $old }) => ({
 
 const SerializerInternalExt = () => ({
     deserializeEntityNoPlace(root, payload) {
-        console.debug("##### ds-enitiy:", payload);
-
         const staticData = payload.components.StaticMapEntity;
         window.assert(staticData, "entity has no static data");
 
@@ -62,12 +60,12 @@ class BPStrings extends Mod {
     static serialize(entities) {
         const data = new SerializerInternal().serializeEntityArray(entities);
         console.debug("##### data out:", data);
-        const bpString = BlueprintPacker.packEntities(data);
+        const bpString = new BlueprintPacker().packEntities(data);
         return bpString;
     }
 
     static deserialize(root, data) {
-        const entities = BlueprintPacker.unpackEntities(root, data);
+        const entities = new BlueprintPacker().unpackEntities(root, data);
         console.debug("##### data in:", entities);
         return new Blueprint(entities);
     }

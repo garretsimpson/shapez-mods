@@ -1,18 +1,24 @@
 /**
  * Shapez blueprint packing
- * Author: SkimnerPhi
+ * Author: SkimnerPhi and FatcatX
  *
  * Packed data syntax
  * - The input data is a list of entities from the game.
+ * - The output data is a serialized text string.
+ * - version 0 format: <chunk>...
+ * - version 1 format: <symbols><chunk>...
+ * - The <symbols> is a NUL separated list of strings: <len>[<string>[NUL<string>...]]
+ *   - where <len> is two bytes: len >>> 8, len & 0xff
  * - These entities are grouped by location into chunks (16x16 tiles).
- * - Each chunk is encoded as <chunk-header><building-data>...
+ * - Each <chunk> is encoded as <chunk-header><building-data>...
  * - The <chunk-header> is 3 bytes:
  *   - 2 bytes <x><y> for the chunk offset.
  *   - 1 byte <n> for the number of buildings contained in the chunk.
  * - The <building-data> is encoded as <offset><rotation><code>[<signal>]
  *   - 1 byte building <offset> encoded as: y << 4 | x.  Example: (0, 12) is 192
  *   - 1 byte <rotation> encoded as (<rotation> / 90) << 4 | <original-rotation> / 90.
- *   - 1 byte for the building <code>, which is the internal id used by the game.
+ *   - <code> is 1 bytes when the building is native to the the game.
+ *   - <code> 2 bytes for mod buildings: 0<symbol-table-index>
  * - Further bytes are only if the building is a constant signal, using the following:
  *
  * Signal compression
@@ -28,6 +34,7 @@
 
 import { compressX64, decompressX64 } from "core/lzstring";
 import { SerializerInternal } from "savegame/serializer_internal";
+import { gBuildingVariants } from "game/building_codes";
 
 const BP_PREFIX = ">>>";
 const BP_SUFFIX = "<<<";
@@ -36,29 +43,32 @@ const BP_FLAG_B64 = "0";
 const BP_FLAG_COMPRESSED = "1";
 
 const CONSTANT_SIGNAL = 31;
+const NUL = "\0";
 
 const COLORS = ["uncolored", "blue", "green", "cyan", "red", "purple", "yellow", "white"];
 const SHAPES = ["C", "R", "W", "S"];
 
 export class BlueprintPacker {
-    static symbolTable = [];
+    constructor() {
+        this.symbolTable = [];
+    }
 
-    static getCode(code) {
+    getCode(code) {
         if (typeof code === "number" && Number.isInteger(code) && code != 0) return [code];
 
         let result = [0];
-        const idx = BlueprintPacker.symbolTable.indexOf(code);
+        const idx = this.symbolTable.indexOf(code);
         if (idx < 0) {
-            result.push(BlueprintPacker.symbolTable.length);
-            BlueprintPacker.symbolTable.push(code);
+            result.push(this.symbolTable.length);
+            this.symbolTable.push(code);
         } else {
             result.push(idx);
         }
         return result;
     }
 
-    static packEntities(entities) {
-        BlueprintPacker.symbolTable = [];
+    packEntities(entities) {
+        this.symbolTable = [];
         let minPos = entities.reduce(
             (r, b) => [
                 Math.min(r[0], b.components.StaticMapEntity.origin.x),
@@ -88,7 +98,7 @@ export class BlueprintPacker {
 
             // 3 or 4 bytes are used for all buildings
             // position, rotation, and ID
-            const code = BlueprintPacker.getCode(sme.code);
+            const code = this.getCode(sme.code);
             let building = [
                 (x % 16 << 4) | y % 16,
                 ((sme.rotation / 90) << 4) | (sme.originalRotation / 90),
@@ -97,7 +107,7 @@ export class BlueprintPacker {
             let signal = [];
             if (sme.code === CONSTANT_SIGNAL) {
                 // signal values use a format that adds 1-12 bytes
-                signal = BlueprintPacker.writeValue(
+                signal = this.writeValue(
                     b.components.ConstantSignal.signal.data,
                     b.components.ConstantSignal.signal.$
                 );
@@ -110,8 +120,8 @@ export class BlueprintPacker {
 
         // construct the output data
         let output = "";
-        console.debug("##### symbols:", BlueprintPacker.symbolTable);
-        const symbols = BlueprintPacker.symbolTable.join("\0");
+        console.debug("##### symbols:", this.symbolTable);
+        const symbols = this.symbolTable.join(NUL);
         const len = symbols.length;
         output += String.fromCharCode(len >>> 8, len & 0xff);
         output += symbols;
@@ -129,7 +139,7 @@ export class BlueprintPacker {
         }
     }
 
-    static unpackEntities(root, blueprint) {
+    unpackEntities(root, blueprint) {
         if (!blueprint.startsWith(BP_PREFIX) || !blueprint.endsWith(BP_SUFFIX)) {
             throw "Not a blueprint string";
         }
@@ -153,25 +163,28 @@ export class BlueprintPacker {
         const hb = data.charCodeAt(idx++);
         const lb = data.charCodeAt(idx++);
         const len = (hb << 8) | lb;
-        const symbols = data.substring(idx, idx + len).split("\0");
+        const symbols = data.substring(idx, idx + len).split(NUL);
         console.debug("##### symbols:", symbols);
         idx += len;
 
         let maxPos = [0, 0];
         let buildings = [];
-        for (; idx < data.length; ) {
+        while (idx < data.length) {
             // consume 3 bytes for chunk header
             let chunkX = data.charCodeAt(idx++);
             let chunkY = data.charCodeAt(idx++);
             let chunkBuildings = data.charCodeAt(idx++);
 
             for (let bldg = 0; bldg < chunkBuildings; bldg++) {
-                // consume 3 bytes for each building
+                // consume 3 or 4 bytes for each building
                 let pos = data.charCodeAt(idx++);
                 let rot = data.charCodeAt(idx++);
                 let code = data.charCodeAt(idx++);
                 if (code == 0) code = symbols[data.charCodeAt(idx++)];
-
+                if (!gBuildingVariants[code]) {
+                    console.log("Skip building:", code);
+                    continue;
+                }
                 let building = {
                     uid: 0,
                     components: {
@@ -187,7 +200,7 @@ export class BlueprintPacker {
                     },
                 };
                 if (code === CONSTANT_SIGNAL) {
-                    [building.components.ConstantSignal, idx] = BlueprintPacker.readValue(data, idx);
+                    [building.components.ConstantSignal, idx] = this.readValue(data, idx);
                 }
 
                 maxPos = [
@@ -211,7 +224,7 @@ export class BlueprintPacker {
         return buildingEntities;
     }
 
-    static writeValue(value, type) {
+    writeValue(value, type) {
         if (type === "boolean_item") {
             return [value & 1];
         }
@@ -254,7 +267,7 @@ export class BlueprintPacker {
         }
     }
 
-    static readValue(dataIn, pos) {
+    readValue(dataIn, pos) {
         let head = dataIn.charCodeAt(pos++);
         if ((head & 0b11111000) === 0b00000000) {
             // 0000 0xxx = boolean
