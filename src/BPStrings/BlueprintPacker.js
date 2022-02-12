@@ -26,10 +26,10 @@
  * 0000 1RGB : color
  * AAAA 0000 : 1 layer shape header
  * AAAA BBBB CCCC DDDD : 2-4 layer shape header
- * ssRGB : each quad
+ * RGBss : each quad
  *
  * Example
- * CpCp--Sy would be 1101 0000 00101 00101 11110
+ * CpCp--Sy would be 1101 0000 10100 10100 11011
  */
 
 import { compressX64, decompressX64 } from "core/lzstring";
@@ -274,12 +274,13 @@ export class BlueprintPacker {
             // remove layer separators
             value = value.replaceAll(":", "");
             // pad to 2 or 4 layers, split into array of quads
-            value = value.padEnd(value.length > 16 ? 32 : 16, "-").match(/(.{2})/g);
+            value = value.padEnd(value.length > 8 ? 32 : 16, "-").match(/(.{2})/g);
 
             let head = [];
             // generate bit field for enabled quads
             for (let i = 0; i < value.length; i++) {
-                head[Math.floor(i / 8)] = (head[Math.floor(i / 8)] << 1) | (value[i] !== "--");
+                const idx = Math.floor(i / 8);
+                head[idx] = (head[idx] << 1) | (value[i] !== "--");
             }
 
             // remove all empty quads
@@ -290,25 +291,26 @@ export class BlueprintPacker {
             for (let i = 0; i < value.length; i++) {
                 const shape = SHAPES.indexOf(value[i].charAt(0));
                 const color = COLORS.findIndex(x => x.startsWith(value[i].charAt(1)));
-                const pair = (color << 2) | shape;
+                const pair = (color << 2) | shape; // RGBss
 
                 // shift quad data into position and add to buffer
-                const offset = (pos % 8) - 3;
-                data[Math.floor(pos / 8)] |= offset < 0 ? pair << -offset : pair >> offset;
+                const idx = Math.floor(pos / 8);
+                const offset = (pos % 8) - 3; // 8-5 = 3
+                data[idx] |= offset < 0 ? pair << -offset : pair >> offset;
                 if (offset > 0) {
                     // if there is not enough space on the first byte, overflow remaining bits to the second byte
-                    data[Math.floor(pos / 8) + 1] |= (pair << (8 - offset)) & 0xff;
+                    data[idx + 1] |= (pair << (8 - offset)) & 0xff;
                 }
                 pos += 5;
             }
-
-            return [...head, ...data];
+            const result = [...head, ...data];
+            return result;
         }
     }
 
     readValue(dataIn, pos) {
         let head = dataIn.charCodeAt(pos++);
-        
+
         if ((head & 0b11111000) === 0b00000000) {
             // 0000 0xxx = boolean
             return [
