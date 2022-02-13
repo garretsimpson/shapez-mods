@@ -176,8 +176,8 @@ export class BlueprintPacker {
      */
     unpackEntities(root, dataStr) {
         // strip newlines
-        const EOL = /\r?\n/;
-        dataStr.replaceAll(EOL, "");
+        const EOL = /[\r\n]/;
+        dataStr = dataStr.replaceAll(EOL, "");
 
         if (!dataStr.startsWith(BP_PREFIX) || !dataStr.endsWith(BP_SUFFIX)) {
             throw "Not a blueprint string";
