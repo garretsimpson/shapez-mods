@@ -10,6 +10,7 @@ import { COLOR_ITEM_SINGLETONS } from "game/items/color_item";
 import { defaultBuildingVariant } from "game/meta_building";
 import { types } from "savegame/serialization";
 import { Mod, ModMetaBuilding } from "mods/mod";
+import { typeItemSingleton } from "game/item_resolver";
 import display16x1 from "./display16x1.png";
 import displayIcon from "./displayIcon.png";
 
@@ -34,7 +35,14 @@ class BigDisplayComponent extends Component {
     // Is getSchema needed?
     static getSchema() {
         return {
+            index: types.uint,
             type: types.string,
+            slots: types.fixedSizeArray(
+                types.structured({
+                    data: types.nullable(typeItemSingleton),
+                    value: types.nullable(typeItemSingleton),
+                })
+            ),
         };
     }
 
@@ -157,6 +165,13 @@ class BigDisplaySystem extends GameSystemWithFilter {
         }
     }
 
+    toColor(r, g, b) {
+        const red = r.toString(16).padStart(2, "0");
+        const grn = g.toString(16).padStart(2, "0");
+        const blu = b.toString(16).padStart(2, "0");
+        return `#${red.toString(16)}${grn.toString(16)}${blu.toString(16)}`;
+    }
+
     drawChunk(parameters, chunk) {
         const entities = chunk.containedEntitiesByLayer.regular;
         for (let entity of entities) {
@@ -180,6 +195,14 @@ class BigDisplaySystem extends GameSystemWithFilter {
                 if (value.getItemType() === "shape") {
                     value.drawItemCenteredClipped(worldPos.x, worldPos.y, parameters, 30);
                 }
+                // const red = 240;
+                // const grn = Math.abs(tile.x % 16) * 16;
+                // const blu = Math.abs(tile.y % 16) * 16;
+                // parameters.context.fillStyle = this.toColor(red, grn, blu);
+                // const size = globalConfig.tileSize;
+                // const posX = worldPos.x - size / 2;
+                // const posY = worldPos.y - size / 2;
+                // parameters.context.fillRect(posX, posY, size, size);
             }
         }
     }
