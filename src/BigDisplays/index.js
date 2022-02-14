@@ -7,24 +7,60 @@ import { enumPinSlotType, WiredPinsComponent } from "game/components/wired_pins"
 import { GameSystemWithFilter } from "game/game_system_with_filter";
 import { isTrueItem, isTruthyItem } from "game/items/boolean_item";
 import { COLOR_ITEM_SINGLETONS } from "game/items/color_item";
-import { defaultBuildingVariant } from "game/meta_building";
-import { types } from "savegame/serialization";
-import { Mod, ModMetaBuilding } from "mods/mod";
 import { typeItemSingleton } from "game/item_resolver";
+import { defaultBuildingVariant } from "game/meta_building";
+import { Mod, ModMetaBuilding } from "mods/mod";
+import { types } from "savegame/serialization";
 import display16x1 from "./display16x1.png";
 import displayIcon from "./displayIcon.png";
 
 import META from "./mod.json";
 
+/**
+ * Big Displays
+ *
+ * Description
+ * - 16 tiles wide, 1 tile high
+ * - 1 data input (side)
+ * - 1 sync input (bottom)
+ * - 1 sync output (top)
+ *
+ * Connect a stream of values (shapes or colors) to the data pin.
+ * Send a pulse to the sync pin to display and latch the values.
+ * The sync pin is a "pass-thru" connector.
+ * All displays connected to the same sync signal update at the same time.
+ *
+ * Display types
+ * - "default" - input a shape, displays 16 colors, 1 tick refresh.
+ * - "shapes" - input a stream of values, displays 16 colors or shapes, 16 tick refresh.
+ * - "hidef" - input a stream of shapes, displays 256 (64x4) colors, 16 tick refresh.
+ *
+ * TODO
+ * - Extend in-game Display building?
+ */
+
 const DISPLAY_SIZE = { x: 16, y: 1 };
 
 const enumBigDisplayVariants = {
     shapes: "shapes",
+    hidef: "hidef",
 };
 
 const enumBigDisplayType = {
     color: "color",
     shape: "shape",
+    hd: "hd",
+};
+
+const COLOR_TABLE = {
+    red: "#f8143a", // rgb(248,20,58) hsv(350°, 92%, 97%)
+    yellow: "#fcff19", // rgb(252,255,25) hsv(61°, 90%, 100%)
+    green: "#69ff2e", // rgb(105,255,46) hsv(103°, 82%, 100%)
+    cyan: "#17f1f4", // rgb(23,241,244) hsv(181°, 91%, 96%)
+    blue: "#30a0ff", // rgb(48,160,255) hsv(208°, 81%, 100%)
+    purple: "#d02dff", // rgb(208,45,255) hsv(287°, 82%, 100%)
+    white: "#ffffff", // rgb(255,255,255) hsv(0°, 0%, 100%)
+    uncolored: "#71737c", // rgb(113,115,124) hsv(229°, 9%, 49%)
 };
 
 class BigDisplayComponent extends Component {
@@ -36,7 +72,7 @@ class BigDisplayComponent extends Component {
     static getSchema() {
         return {
             index: types.uint,
-            type: types.string,
+            type: types.enum(enumBigDisplayType),
             slots: types.fixedSizeArray(
                 types.structured({
                     data: types.nullable(typeItemSingleton),
@@ -62,7 +98,7 @@ class BigDisplayComponent extends Component {
      */
     setSlots(slots) {
         this.slots = slots.map(slotData => {
-            return { pos: slotData.pos, value: null, data: null };
+            return { pos: slotData.pos, value: slotData.value, data: slotData.data };
         });
     }
 }
@@ -94,6 +130,21 @@ class BigDisplaySystem extends GameSystemWithFilter {
         }
     }
 
+    getShapeColors(item) {
+        const result = [];
+        if (item.getItemType() !== "shape") return result;
+
+        for (let i = 0; i < 16; i++) {
+            let colorItem = COLOR_ITEM_SINGLETONS[enumColors.uncolored];
+            const layer = item.definition.layers[Math.floor(i / 4)];
+            if (!layer) break;
+            const quad = layer[i % 4];
+            if (quad) colorItem = COLOR_ITEM_SINGLETONS[quad.color];
+            result.push(colorItem);
+        }
+        return result;
+    }
+
     update() {
         for (let entity of this.allEntities) {
             const displayComp = entity.components.BigDisplay;
@@ -101,11 +152,9 @@ class BigDisplaySystem extends GameSystemWithFilter {
             const pinsComp = entity.components.WiredPins;
 
             const valuePin = pinsComp.slots[0];
-            let inputValue;
+            let inputValue = COLOR_ITEM_SINGLETONS[enumColors.uncolored];
             if (valuePin.linkedNetwork && valuePin.linkedNetwork.hasValue()) {
                 inputValue = this.getDisplayItem(valuePin.linkedNetwork.currentValue);
-            } else {
-                inputValue = COLOR_ITEM_SINGLETONS[enumColors.uncolored];
             }
 
             if (displayComp.type === enumBigDisplayType.color) {
@@ -115,20 +164,18 @@ class BigDisplaySystem extends GameSystemWithFilter {
                     }
                 }
                 if (inputValue.getItemType() === "shape") {
-                    // map input value to display slots
+                    const colors = this.getShapeColors(inputValue);
                     for (let slot of displayComp.slots) {
                         slot.data = null;
                         const idx = DISPLAY_SIZE.x * slot.pos.y + slot.pos.x;
-                        const layer = inputValue.definition.layers[Math.floor(idx / 4)];
-                        if (!layer) continue;
-                        const quad = layer[idx % 4];
-                        if (!quad) continue;
-                        slot.data = COLOR_ITEM_SINGLETONS[quad.color];
+                        const color = colors[idx];
+                        if (!color || color.color === enumColors.uncolored) continue;
+                        slot.data = color;
                     }
                 }
             }
 
-            if (displayComp.type === enumBigDisplayType.shape) {
+            if (displayComp.type === enumBigDisplayType.shape || displayComp.type === enumBigDisplayType.hd) {
                 const index = displayComp.index;
                 displayComp.index = (index + 1) % (DISPLAY_SIZE.x * DISPLAY_SIZE.y);
                 displayComp.slots[index].data = inputValue;
@@ -165,18 +212,20 @@ class BigDisplaySystem extends GameSystemWithFilter {
         }
     }
 
-    toColor(r, g, b) {
-        const red = r.toString(16).padStart(2, "0");
-        const grn = g.toString(16).padStart(2, "0");
-        const blu = b.toString(16).padStart(2, "0");
-        return `#${red.toString(16)}${grn.toString(16)}${blu.toString(16)}`;
-    }
+    // toColor(r, g, b) {
+    //     const red = r.toString(16).padStart(2, "0");
+    //     const grn = g.toString(16).padStart(2, "0");
+    //     const blu = b.toString(16).padStart(2, "0");
+    //     return `#${red.toString(16)}${grn.toString(16)}${blu.toString(16)}`;
+    // }
 
     drawChunk(parameters, chunk) {
         const entities = chunk.containedEntitiesByLayer.regular;
         for (let entity of entities) {
-            if (!entity || !entity.components.BigDisplay) continue;
-            const slots = entity.components.BigDisplay.slots;
+            const displayComp = entity.components.BigDisplay;
+            if (!entity || !displayComp) continue;
+            const displayType = displayComp.type;
+            const slots = displayComp.slots;
             for (let slot of slots) {
                 const tile = entity.components.StaticMapEntity.localTileToWorld(slot.pos);
                 if (!chunk.tileSpaceRectangle.containsPoint(tile.x, tile.y)) continue;
@@ -192,17 +241,28 @@ class BigDisplaySystem extends GameSystemWithFilter {
                         globalConfig.tileSize
                     );
                 }
-                if (value.getItemType() === "shape") {
+                if (value.getItemType() === "shape" && displayType === enumBigDisplayType.shape) {
                     value.drawItemCenteredClipped(worldPos.x, worldPos.y, parameters, 30);
                 }
-                // const red = 240;
-                // const grn = Math.abs(tile.x % 16) * 16;
-                // const blu = Math.abs(tile.y % 16) * 16;
-                // parameters.context.fillStyle = this.toColor(red, grn, blu);
-                // const size = globalConfig.tileSize;
-                // const posX = worldPos.x - size / 2;
-                // const posY = worldPos.y - size / 2;
-                // parameters.context.fillRect(posX, posY, size, size);
+                if (value.getItemType() === "shape" && displayType === enumBigDisplayType.hd) {
+                    const colors = this.getShapeColors(value);
+                    if (colors.length == 0) continue;
+                    // Display 4x4 array of colors
+                    const tileSize = globalConfig.tileSize / 4;
+                    const elemSize = tileSize; // scale?
+                    for (let i = 0; i < 16; i++) {
+                        const color = colors[i];
+                        if (!color || color.color === enumColors.uncolored) continue;
+                        const x = (i % 4) - 2; // x range: -2..1
+                        const y = 1 - Math.floor(i / 4); // y range: -2..1
+                        let posX = worldPos.x + x * tileSize;
+                        let posY = worldPos.y + y * tileSize;
+                        posX += (tileSize - elemSize) / 2;
+                        posY += (tileSize - elemSize) / 2;
+                        parameters.context.fillStyle = COLOR_TABLE[color.color];
+                        parameters.context.fillRect(posX, posY, elemSize, elemSize);
+                    }
+                }
             }
         }
     }
@@ -217,20 +277,31 @@ class MetaBigDisplays extends ModMetaBuilding {
         return [
             {
                 variant: defaultBuildingVariant,
-                name: "Color Display (16 x 1)",
-                description: "Displays 16 colors, one for each corner of the connected shape signal.",
-
+                name: "Color Display",
+                description:
+                    "Displays 16 colors, one for each corner of the connected shape signal." +
+                    "Use a truthy signal on the sync input to display and latch the values.",
                 regularImageBase64: `${display16x1}`,
                 blueprintImageBase64: `${display16x1}`,
                 tutorialImageBase64: `${display16x1}`,
             },
             {
                 variant: enumBigDisplayVariants.shapes,
-                name: "Shape Display (16 x 1)",
+                name: "Shape Display",
                 description:
-                    "Displays 16 shapes. Connect a stream of shapes to the data input. " +
-                    "Then use a truthy signal on the sync input to display the shapes.",
-
+                    "Displays 16 colors or shapes. Connect a stream of values to the data input. " +
+                    "Use a truthy signal on the sync input to display and latch the values.",
+                regularImageBase64: `${display16x1}`,
+                blueprintImageBase64: `${display16x1}`,
+                tutorialImageBase64: `${display16x1}`,
+            },
+            {
+                variant: enumBigDisplayVariants.hidef,
+                name: "Hi-def Display",
+                description:
+                    "Displays 256 colors.  Connect a stream of shapes. " +
+                    "Each shape is displayed as a 4x4 array of colors. " +
+                    "Use a truthy signal on the sync input to display and latch the values.",
                 regularImageBase64: `${display16x1}`,
                 blueprintImageBase64: `${display16x1}`,
                 tutorialImageBase64: `${display16x1}`,
@@ -239,7 +310,7 @@ class MetaBigDisplays extends ModMetaBuilding {
     }
 
     getAvailableVariants() {
-        return [defaultBuildingVariant, enumBigDisplayVariants.shapes];
+        return [defaultBuildingVariant, enumBigDisplayVariants.shapes, enumBigDisplayVariants.hidef];
     }
 
     getSilhouetteColor() {
@@ -296,6 +367,9 @@ class MetaBigDisplays extends ModMetaBuilding {
                 break;
             case enumBigDisplayVariants.shapes:
                 entity.components.BigDisplay.setType(enumBigDisplayType.shape);
+                break;
+            case enumBigDisplayVariants.hidef:
+                entity.components.BigDisplay.setType(enumBigDisplayType.hd);
                 break;
         }
     }
