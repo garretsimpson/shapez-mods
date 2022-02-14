@@ -19,21 +19,25 @@ import META from "./mod.json";
 /**
  * Big Displays
  *
- * Description
+ * All displays have the following in common:
  * - 16 tiles wide, 1 tile high
  * - 1 data input (side)
  * - 1 sync input (bottom)
  * - 1 sync output (top)
  *
  * Connect a stream of values (shapes or colors) to the data pin.
+ * While the sync pin is low, values are stored (not displayed).
+ * If the input value is null, the stored data is not changed.
+ * 
  * Send a pulse to the sync pin to display and latch the values.
- * The sync pin is a "pass-thru" connector.
+ * Sync also resets the data index to the first position; it does not clear the stored data.
+ * The sync pins "pass-thru" the connected signal.
  * All displays connected to the same sync signal update at the same time.
  *
  * Display types
- * - "default" - input a shape, displays 16 colors, 1 tick refresh.
- * - "shapes" - input a stream of values, displays 16 colors or shapes, 16 tick refresh.
- * - "hidef" - input a stream of shapes, displays 256 (64x4) colors, 16 tick refresh.
+ * - Colors - input a shape, displays 16 colors, 1 tick refresh.
+ * - Shapes - input a stream of values, displays 16 colors or shapes, 16 tick refresh.
+ * - Hi-def - input a stream of shapes, displays 256 (64x4) colors, 16 tick refresh.
  *
  * TODO
  * - Extend in-game Display building?
@@ -115,10 +119,11 @@ class BigDisplaySystem extends GameSystemWithFilter {
     }
 
     getDisplayItem(value) {
+        if (!value) return null;
+
         const uncoloredItem = COLOR_ITEM_SINGLETONS[enumColors.uncolored];
         const whiteItem = COLOR_ITEM_SINGLETONS[enumColors.white];
 
-        if (!value) return uncoloredItem;
         switch (value.getItemType()) {
             case "boolean":
                 return isTrueItem(value) ? whiteItem : uncoloredItem;
@@ -152,33 +157,34 @@ class BigDisplaySystem extends GameSystemWithFilter {
             const pinsComp = entity.components.WiredPins;
 
             const valuePin = pinsComp.slots[0];
-            let inputValue = COLOR_ITEM_SINGLETONS[enumColors.uncolored];
+            let inputValue = null;
             if (valuePin.linkedNetwork && valuePin.linkedNetwork.hasValue()) {
                 inputValue = this.getDisplayItem(valuePin.linkedNetwork.currentValue);
             }
 
+            // For color display, update all slots if there is an input value
+            const uncoloredItem = COLOR_ITEM_SINGLETONS[enumColors.uncolored];
             if (displayComp.type === enumBigDisplayType.color) {
-                if (inputValue.getItemType() === "color") {
+                if (inputValue && inputValue.getItemType() === "color") {
                     for (let slot of displayComp.slots) {
                         slot.data = inputValue;
                     }
                 }
-                if (inputValue.getItemType() === "shape") {
+                if (inputValue && inputValue.getItemType() === "shape") {
                     const colors = this.getShapeColors(inputValue);
                     for (let slot of displayComp.slots) {
-                        slot.data = null;
                         const idx = DISPLAY_SIZE.x * slot.pos.y + slot.pos.x;
-                        const color = colors[idx];
-                        if (!color || color.color === enumColors.uncolored) continue;
-                        slot.data = color;
+                        const colorItem = colors[idx] || uncoloredItem;
+                        slot.data = colorItem;
                     }
                 }
             }
 
+            // For shape displays, increment the index and update data only if the input is not null
             if (displayComp.type === enumBigDisplayType.shape || displayComp.type === enumBigDisplayType.hd) {
                 const index = displayComp.index;
                 displayComp.index = (index + 1) % (DISPLAY_SIZE.x * DISPLAY_SIZE.y);
-                displayComp.slots[index].data = inputValue;
+                if (inputValue) displayComp.slots[index].data = inputValue;
             }
 
             // If there are multiple BigDisplays connected, find the first inPin.
@@ -202,11 +208,10 @@ class BigDisplaySystem extends GameSystemWithFilter {
             }
 
             if (sync) {
-                // sync display
+                // sync display - reset index, copy data, but do not clear
                 displayComp.index = 0;
                 for (let slot of displayComp.slots) {
                     slot.value = slot.data;
-                    slot.data = null;
                 }
             }
         }
