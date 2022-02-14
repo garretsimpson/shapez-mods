@@ -315,8 +315,10 @@ export class BlueprintPacker {
             // 0000 0xxx = boolean
             return [
                 {
-                    $: "boolean_item",
-                    data: head,
+                    signal: {
+                        $: "boolean_item",
+                        data: head,
+                    },
                 },
                 pos,
             ];
@@ -326,8 +328,10 @@ export class BlueprintPacker {
             // 0000 1rgb = color
             return [
                 {
-                    $: "color",
-                    data: COLORS[head & 0b0111],
+                    signal: {
+                        $: "color",
+                        data: COLORS[head & 0b0111],
+                    },
                 },
                 pos,
             ];

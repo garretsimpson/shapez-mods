@@ -2,7 +2,7 @@
     "id": "bp-string",
     "name": "Blueprint strings",
     "author": "FatcatX and SkimnerPhi",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "description": "Generate a sharable string in the system clipboard when you copy and paste blueprints.",
     "website": "https://github.com/garretsimpson/shapez-mods",
     "minimumGameVersion": ">=1.5.0",
