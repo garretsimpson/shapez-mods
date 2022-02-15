@@ -926,6 +926,7 @@ declare module "savegame/serialization_data_types" {
         /**
          * Serializes a given raw value
          * @param {any} value
+         * @abstract
          */
         serialize(value: any): {};
         /**
@@ -941,6 +942,7 @@ declare module "savegame/serialization_data_types" {
          * @param {object} targetObject
          * @param {string|number} targetKey
          * @returns {string|void} String error code or null on success
+         * @abstract
          */
         deserialize(value: any, targetObject: object, targetKey: string | number, root: GameRoot): string | void;
         /**
@@ -951,6 +953,7 @@ declare module "savegame/serialization_data_types" {
         };
         /**
          * INTERNAL Should return the json schema representation
+         * @abstract
          */
         getAsJsonSchemaUncached(): void;
         /**
@@ -969,6 +972,7 @@ declare module "savegame/serialization_data_types" {
         deserializeWithVerify(value: any, targetObject: object, targetKey: string | number, root: GameRoot): string | void;
         /**
          * Should return a cacheable key
+         * @abstract
          */
         getCacheKey(): string;
     }
@@ -1227,6 +1231,7 @@ declare module "game/component" {
         /**
          * Returns the components unique id
          * @returns {string}
+         * @abstract
          */
         static getId(): string;
         /**
@@ -1272,6 +1277,7 @@ declare module "game/base_item" {
         /**
          * Returns a string id of the item
          * @returns {string}
+         * @abstract
          */
         getAsCopyableKey(): string;
         /**
@@ -1282,15 +1288,16 @@ declare module "game/base_item" {
         equals(other: BaseItem): boolean;
         /**
          * Override for custom comparison
-         * @abstract
          * @param {BaseItem} other
          * @returns {boolean}
+         * @abstract
          */
         equalsImpl(other: BaseItem): boolean;
         /**
          * Draws the item to a canvas
          * @param {CanvasRenderingContext2D} context
          * @param {number} size
+         * @abstract
          */
         drawFullSizeOnCanvas(context: CanvasRenderingContext2D, size: number): void;
         /**
@@ -1307,6 +1314,7 @@ declare module "game/base_item" {
          * @param {number} y
          * @param {DrawParameters} parameters
          * @param {number=} diameter
+         * @abstract
          */
         drawItemCenteredImpl(x: number, y: number, parameters: DrawParameters, diameter?: number | undefined): void;
         getBackgroundColorAsResource(): string;
@@ -2788,6 +2796,12 @@ declare module "game/components/miner" {
     import { Entity } from "game/entity";
 }
 declare module "game/components/storage" {
+    /** @type {{
+     * [x: string]: (item: BaseItem) => Boolean
+     * }} */
+    export const MODS_ADDITIONAL_STORAGE_ITEM_RESOLVER: {
+        [x: string]: (item: BaseItem) => boolean;
+    };
     export class StorageComponent extends Component {
         static getSchema(): {
             storedCount: import("savegame/serialization_data_types").TypePositiveInteger;
@@ -2818,7 +2832,7 @@ declare module "game/components/storage" {
          * Returns whether this storage can accept the item
          * @param {BaseItem} item
          */
-        canAcceptItem(item: BaseItem): boolean;
+        canAcceptItem(item: BaseItem): any;
         /**
          * Returns whether the storage is full
          * @returns {boolean}
@@ -2829,8 +2843,8 @@ declare module "game/components/storage" {
          */
         takeItem(item: BaseItem): void;
     }
-    import { Component } from "game/component";
     import { BaseItem } from "game/base_item";
+    import { Component } from "game/component";
 }
 declare module "game/components/underground_belt" {
     export type enumUndergroundBeltMode = string;
@@ -3051,12 +3065,14 @@ declare module "platform/achievement_provider" {
         /**
          * Initializes the achievement provider.
          * @returns {Promise<void>}
+         * @abstract
          */
         initialize(): Promise<void>;
         /**
          * Opportunity to do additional initialization work with the GameRoot.
          * @param {GameRoot} root
          * @returns {Promise<void>}
+         * @abstract
          */
         onLoad(root: GameRoot): Promise<void>;
         /** @returns {boolean} */
@@ -3065,11 +3081,13 @@ declare module "platform/achievement_provider" {
          * Call to activate an achievement with the provider
          * @param {string} key - Maps to an Achievement
          * @returns {Promise<void>}
+         * @abstract
          */
         activate(key: string): Promise<void>;
         /**
          * Checks if achievements are supported in the current build
          * @returns {boolean}
+         * @abstract
          */
         hasAchievements(): boolean;
     }
@@ -4209,6 +4227,7 @@ declare module "game/entity" {
         /**
          * override, should draw the entity
          * @param {DrawParameters} parameters
+         * @abstract
          */
         drawImpl(parameters: DrawParameters): void;
     }
@@ -4396,6 +4415,7 @@ declare module "game/meta_building" {
          * Should setup the entity components
          * @param {Entity} entity
          * @param {GameRoot} root
+         * @abstract
          */
         setupEntityComponents(entity: Entity, root: GameRoot): void;
     }
@@ -5088,6 +5108,7 @@ declare module "game/hud/base_hud_part" {
         createElements(parent: HTMLElement): void;
         /**
          * Should initialize the element, called *after* the elements have been created
+         * @abstract
          */
         initialize(): void;
         /**
@@ -5234,6 +5255,7 @@ declare module "game/game_mode" {
         /**
          * @param {number} w
          * @param {number} h
+         * @abstract
          */
         adjustZone(w?: number, h?: number): void;
         /** @returns {array} */
@@ -5474,6 +5496,7 @@ declare module "core/game_state" {
         /**
          * Should return the html code of the state.
          * @returns {string}
+         * @abstract
          */
         getInnerHTML(): string;
         /**
@@ -5606,6 +5629,7 @@ declare module "platform/storage" {
         /**
          * Initializes the storage
          * @returns {Promise<void>}
+         * @abstract
          */
         initialize(): Promise<void>;
         /**
@@ -5613,12 +5637,14 @@ declare module "platform/storage" {
          * @param {string} filename
          * @param {string} contents
          * @returns {Promise<void>}
+         * @abstract
          */
         writeFileAsync(filename: string, contents: string): Promise<void>;
         /**
          * Reads a string asynchronously. Returns Promise<FILE_NOT_FOUND> if file was not found.
          * @param {string} filename
          * @returns {Promise<string>}
+         * @abstract
          */
         readFileAsync(filename: string): Promise<string>;
         /**
@@ -7714,6 +7740,12 @@ declare module "game/hud/parts/game_menu" {
     import { TrackedState } from "core/tracked_state";
 }
 declare module "game/hud/parts/constant_signal_edit" {
+    /** @type {{
+     * [x: string]: (entity: Entity) => BaseItem
+     * }} */
+    export const MODS_ADDITIONAL_CONSTANT_SIGNAL_RESOLVER: {
+        [x: string]: (entity: Entity) => BaseItem;
+    };
     export class HUDConstantSignalEdit extends BaseHUDPart {
         constructor(root: import("game/root").GameRoot);
         /**
@@ -7738,11 +7770,11 @@ declare module "game/hud/parts/constant_signal_edit" {
          */
         parseSignalCode(entity: Entity, code: string): BaseItem;
     }
+    import { Entity } from "game/entity";
+    import { BaseItem } from "game/base_item";
     import { BaseHUDPart } from "game/hud/base_hud_part";
     import { Vector } from "core/vector";
     import { enumMouseButton } from "game/camera";
-    import { Entity } from "game/entity";
-    import { BaseItem } from "game/base_item";
 }
 declare module "game/hud/parts/keybinding_overlay" {
     /**
@@ -8292,10 +8324,24 @@ declare module "game/systems/item_processor" {
      *   }} ProcessorImplementationPayload
      */
     /**
+     * Type of a processor implementation
+     * @typedef {{
+     *   entity: Entity,
+     *   item: BaseItem,
+     *   slotIndex: number
+     *   }} ProccessingRequirementsImplementationPayload
+     */
+    /**
      * @type {Object<string, (ProcessorImplementationPayload) => void>}
      */
     export const MOD_ITEM_PROCESSOR_HANDLERS: {
         [x: string]: (ProcessorImplementationPayload: any) => void;
+    };
+    /**
+     * @type {Object<string, (ProccessingRequirementsImplementationPayload) => boolean>}
+     */
+    export const MODS_PROCESSING_REQUIREMENTS: {
+        [x: string]: (ProccessingRequirementsImplementationPayload: any) => boolean;
     };
     export class ItemProcessorSystem extends GameSystemWithFilter {
         constructor(root: any);
@@ -8401,6 +8447,14 @@ declare module "game/systems/item_processor" {
         items: Map<number, BaseItem>;
         inputCount: number;
         outItems: Array<ProducedItem>;
+    };
+    /**
+     * Type of a processor implementation
+     */
+    export type ProccessingRequirementsImplementationPayload = {
+        entity: Entity;
+        item: BaseItem;
+        slotIndex: number;
     };
     import { GameSystemWithFilter } from "game/game_system_with_filter";
     import { Entity } from "game/entity";
@@ -8706,6 +8760,18 @@ declare module "game/systems/lever" {
     import { MapChunkView } from "game/map_chunk_view";
 }
 declare module "game/systems/display" {
+    /** @type {{
+     * [x: string]: (item: BaseItem) => BaseItem
+     * }} */
+    export const MODS_ADDITIONAL_DISPLAY_ITEM_RESOLVER: {
+        [x: string]: (item: BaseItem) => BaseItem;
+    };
+    /** @type {{
+     * [x: string]: (parameters: import("../../core/draw_parameters").DrawParameters, entity: import("../entity").Entity, item: BaseItem) => BaseItem
+     * }} */
+    export const MODS_ADDITIONAL_DISPLAY_ITEM_DRAW: {
+        [x: string]: (parameters: import("../../core/draw_parameters").DrawParameters, entity: import("../entity").Entity, item: BaseItem) => BaseItem;
+    };
     export class DisplaySystem extends GameSystem {
         constructor(root: any);
         /** @type {Object<string, import("../../core/draw_utils").AtlasSprite>} */
@@ -8723,10 +8789,10 @@ declare module "game/systems/display" {
          * @param {import("../../core/draw_utils").DrawParameters} parameters
          * @param {MapChunkView} chunk
          */
-        drawChunk(parameters: import("../../core/draw_utils").DrawParameters, chunk: MapChunkView): void;
+        drawChunk(parameters: import("../../core/draw_utils").DrawParameters, chunk: MapChunkView): any;
     }
-    import { GameSystem } from "game/game_system";
     import { BaseItem } from "game/base_item";
+    import { GameSystem } from "game/game_system";
     import { MapChunkView } from "game/map_chunk_view";
 }
 declare module "game/systems/item_processor_overlays" {
@@ -9284,8 +9350,8 @@ declare module "mods/mod_interface" {
          * @param {string=} payload.name
          * @param {string=} payload.description
          * @param {Vector=} payload.dimensions
-         * @param {(root: GameRoot) => [string, string][]} payload.additionalStatistics
-         * @param {(root: GameRoot) => boolean[]} payload.isUnlocked
+         * @param {(root: GameRoot) => [string, string][]=} payload.additionalStatistics
+         * @param {(root: GameRoot) => boolean[]=} payload.isUnlocked
          */
         addVariantToExistingBuilding(metaClass: new () => MetaBuilding, variant: string, payload: {
             rotationVariants?: number[] | undefined;
@@ -9295,8 +9361,8 @@ declare module "mods/mod_interface" {
             name?: string | undefined;
             description?: string | undefined;
             dimensions?: Vector | undefined;
-            additionalStatistics: (root: GameRoot) => [string, string][];
-            isUnlocked: (root: GameRoot) => boolean[];
+            additionalStatistics?: (root: GameRoot) => [string, string][];
+            isUnlocked?: (root: GameRoot) => boolean[];
         }): void;
     }
     export type constructable = {
@@ -11848,6 +11914,7 @@ declare module "core/sprites" {
         /**
          * Returns the raw handle
          * @returns {HTMLImageElement|HTMLCanvasElement}
+         * @abstract
          */
         getRawTexture(): HTMLImageElement | HTMLCanvasElement;
         /**
@@ -12284,12 +12351,14 @@ declare module "platform/ad_provider" {
         /**
          * Returns if this provider serves ads at all
          * @returns {boolean}
+         * @abstract
          */
         getHasAds(): boolean;
         /**
          * Returns if it would be possible to show a video ad *now*. This can be false if for
          * example the last video ad is
          * @returns {boolean}
+         * @abstract
          */
         getCanShowVideoAd(): boolean;
         /**
@@ -12320,6 +12389,7 @@ declare module "platform/analytics" {
         /**
          * Initializes the analytics
          * @returns {Promise<void>}
+         * @abstract
          */
         initialize(): Promise<void>;
         /**
@@ -12449,10 +12519,12 @@ declare module "platform/wrapper" {
          * Attempt to open an external url
          * @param {string} url
          * @param {boolean=} force Whether to always open the url even if not allowed
+         * @abstract
          */
         openExternalLink(url: string, force?: boolean | undefined): void;
         /**
          * Attempt to restart the app
+         * @abstract
          */
         performRestart(): void;
         /**
@@ -12462,6 +12534,7 @@ declare module "platform/wrapper" {
         /**
          * Should set the apps fullscreen state to the desired state
          * @param {boolean} flag
+         * @abstract
          */
         setFullscreen(flag: boolean): void;
         /**
@@ -12470,6 +12543,7 @@ declare module "platform/wrapper" {
         getSupportsAppExit(): boolean;
         /**
          * Attempts to quit the app
+         * @abstract
          */
         exitApp(): void;
         /**
@@ -12554,6 +12628,7 @@ declare module "profile/setting_types" {
         /**
          * Returns the HTML for this setting
          * @param {Application} app
+         * @abstract
          */
         getHtml(app: Application): string;
         /**
@@ -12564,6 +12639,7 @@ declare module "profile/setting_types" {
         syncValueToElement(): void;
         /**
          * Attempts to modify the setting
+         * @abstract
          */
         modify(): void;
         /**
@@ -12574,6 +12650,7 @@ declare module "profile/setting_types" {
          * Validates the set value
          * @param {any} value
          * @returns {boolean}
+         * @abstract
          */
         validate(value: any): boolean;
     }
@@ -13017,6 +13094,7 @@ declare module "platform/game_analytics" {
         /**
          * Initializes the analytics
          * @returns {Promise<void>}
+         * @abstract
          */
         initialize(): Promise<void>;
         /**
@@ -13041,6 +13119,7 @@ declare module "platform/game_analytics" {
         /**
          * Activates a DLC
          * @param {string} dlc
+         * @abstract
          */
         activateDlc(dlc: string): Promise<void>;
     }
