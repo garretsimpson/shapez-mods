@@ -131,7 +131,7 @@ export class BlueprintPacker {
         });
 
         // finish by adding the building count to the chunk headers
-        chunks.forEach(c => c[0].push(c.length - 1));
+        chunks.forEach(c => c[0].push(c.length - 2));
 
         // construct the output data
         let output = "";
