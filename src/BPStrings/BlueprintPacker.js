@@ -6,7 +6,7 @@
  * - The input data is a list of entities from the game.
  * - The output data is a serialized text string.
  * - version 0 format: <chunk>...
- * - version 1 format: <symbols><chunk>...
+ * - version 1+ format: <symbols><chunk>...
  * - The <symbols> is a NUL separated list of strings: <len>[<string>[NUL<string>...]]
  *   - where <len> is two bytes: len >>> 8, len & 0xff
  * - These entities are grouped by location into chunks (16x16 tiles).
@@ -14,6 +14,7 @@
  * - The <chunk-header> is 3 bytes:
  *   - 2 bytes <x><y> for the chunk offset.
  *   - 1 byte <n> for the number of buildings contained in the chunk.
+ *     - version 2+: the building count - 1 is stored to allow 256 buildings.
  * - The <building-data> is encoded as <offset><rotation><code>[<signal>]
  *   - 1 byte building <offset> encoded as: y << 4 | x.  Example: (0, 12) is 192
  *   - 1 byte <rotation> encoded as (<rotation> / 90) << 4 | <original-rotation> / 90.
@@ -47,11 +48,17 @@ const SHAPES = ["C", "R", "W", "S"];
 const MAX_WIDTH = 64;
 const NUL = "\0";
 
+// b64: base64 encoded
+// compress: compressed and base64 encoded
+// symbols: contains a symbol table
+// bcb: building count bug - count is stored rather than count - 1
 const CONFIGS = {
-    "v0-b64": { id: "0", b64: true },
-    "v0-compress": { id: "1", compress: true },
-    "v1-b64": { id: "2", b64: true, symbols: true },
-    "v1-compress": { id: "3", compress: true, symbols: true },
+    "v0-b64": { id: "0", b64: true, bcb: true },
+    "v0-compress": { id: "1", compress: true, bcb: true },
+    "v1-b64": { id: "2", b64: true, symbols: true, bcb: true },
+    "v1-compress": { id: "3", compress: true, symbols: true, bcb: true },
+    "v2-b64": { id: "4", b64: true, symbols: true },
+    "v2-compress": { id: "5", compress: true, symbols: true },
 };
 
 export class BlueprintPacker {
@@ -130,7 +137,7 @@ export class BlueprintPacker {
             chunk.push([...building, ...signal]);
         });
 
-        // finish by adding the building count to the chunk headers
+        // finish by adding the building count (-1) to the chunk headers
         chunks.forEach(c => c[0].push(c.length - 2));
 
         // construct the output data
@@ -151,9 +158,9 @@ export class BlueprintPacker {
         // ouput strings will always start with >>> and a flag indicating format and end with <<<
         output = BP_PREFIX;
         if (compressedOutput.length < b64Output.length) {
-            output += CONFIGS["v1-compress"].id + compressedOutput;
+            output += CONFIGS["v2-compress"].id + compressedOutput;
         } else {
-            output += CONFIGS["v1-b64"].id + b64Output;
+            output += CONFIGS["v2-b64"].id + b64Output;
         }
         output += BP_SUFFIX;
 
@@ -213,6 +220,7 @@ export class BlueprintPacker {
             let chunkX = data.charCodeAt(idx++);
             let chunkY = data.charCodeAt(idx++);
             let chunkBuildings = data.charCodeAt(idx++);
+            if (!config.bcb) chunkBuildings++;
 
             for (let bldg = 0; bldg < chunkBuildings; bldg++) {
                 // consume 3 or 4 bytes for each building
