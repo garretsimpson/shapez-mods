@@ -117,10 +117,11 @@ class ShapezSynth {
             sustain: 0.3,
             //releaseCurve: "exponential",
         });
-        const reverb = new Tone.Reverb(0.3).toDestination();
-        this.synth = synth.connect(reverb);
+        // const reverb = new Tone.Reverb(0.3).toDestination();
+        // this.synth = synth.connect(reverb);
         // const chorus = new Tone.Chorus(4, 2.5, 0.5).toDestination().start();
         // this.synth = synth.connect(chorus);
+        this.synth = synth.toDestination();
         this.shape = "";
     }
 
