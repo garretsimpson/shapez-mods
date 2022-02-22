@@ -84,24 +84,20 @@ class GamePadMeta extends ModMetaBuilding {
     }
 
     getSilhouetteColor() {
-        return "#ddddaa";
+        return "#777777";
     }
 
     getDimensions() {
         return new Vector(PAD_SIZE.x, PAD_SIZE.y);
     }
 
-    getRenderPins() {
-        return false;
-    }
-
     setupEntityComponents(entity) {
+        entity.addComponent(new GamePadComponent());
+
         const pins = [];
-        const keys = Object.keys(KEYS);
-        let x = 0;
-        for (let key of keys) {
+        for (let idx = 0; idx < KEYS.length; ++idx) {
             const pin = {
-                pos: new Vector(x++, 0),
+                pos: new Vector(idx, 0),
                 direction: enumDirection.top,
                 type: enumPinSlotType.logicalEjector,
             };
@@ -112,7 +108,6 @@ class GamePadMeta extends ModMetaBuilding {
                 slots: pins,
             })
         );
-        entity.addComponent(new GamePadComponent());
     }
 }
 
