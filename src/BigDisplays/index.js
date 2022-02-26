@@ -28,7 +28,7 @@ import META from "./mod.json";
  * Connect a stream of values (shapes or colors) to the data pin.
  * While the sync pin is low, values are stored (not displayed).
  * If the input value is null, the stored data is not changed.
- * 
+ *
  * Send a pulse to the sync pin to display and latch the values.
  * Sync also resets the data index to the first position; it does not clear the stored data.
  * The sync pins "pass-thru" the connected signal.
@@ -151,6 +151,8 @@ class BigDisplaySystem extends GameSystemWithFilter {
     }
 
     update() {
+        if (!this.root.gameInitialized) return;
+
         for (let entity of this.allEntities) {
             const displayComp = entity.components.BigDisplay;
             if (!displayComp) continue;
