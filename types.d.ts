@@ -4272,8 +4272,9 @@ declare module "game/meta_building" {
         getDimensions(variant?: string): Vector;
         /**
          * Returns whether the building has the direction lock switch available
+         * @param {string} variant
          */
-        getHasDirectionLockAvailable(): boolean;
+        getHasDirectionLockAvailable(variant: string): boolean;
         /**
          * Whether to stay in placement mode after having placed a building
          */
@@ -4296,8 +4297,10 @@ declare module "game/meta_building" {
         getAdditionalStatistics(root: GameRoot, variant: string): Array<[string, string]>;
         /**
          * Returns whether this building can get replaced
+         * @param {string} variant
+         * @param {number} rotationVariant
          */
-        getIsReplaceable(): boolean;
+        getIsReplaceable(variant: string, rotationVariant: number): boolean;
         /**
          * Whether to flip the orientation after a building has been placed - useful
          * for tunnels.
@@ -7939,8 +7942,6 @@ declare module "game/hud/parts/interactive_tutorial" {
 declare module "core/query_parameters" {
     export namespace queryParamOptions {
         export const embedProvider: any;
-        export const fullVersion: boolean;
-        export const sandboxMode: boolean;
     }
 }
 declare module "game/hud/parts/sandbox_controller" {
@@ -8343,6 +8344,14 @@ declare module "game/systems/item_processor" {
     export const MODS_PROCESSING_REQUIREMENTS: {
         [x: string]: (ProccessingRequirementsImplementationPayload: any) => boolean;
     };
+    /**
+     * @type {Object<string, ({entity: Entity}) => boolean>}
+     */
+    export const MODS_CAN_PROCESS: {
+        [x: string]: ({ entity: Entity }: {
+            entity: any;
+        }) => boolean;
+    };
     export class ItemProcessorSystem extends GameSystemWithFilter {
         constructor(root: any);
         /**
@@ -8363,7 +8372,7 @@ declare module "game/systems/item_processor" {
          * Checks whether it's possible to process something
          * @param {Entity} entity
          */
-        canProcess(entity: Entity): boolean;
+        canProcess(entity: Entity): any;
         /**
          * Starts a new charge for the entity
          * @param {Entity} entity
@@ -13128,7 +13137,7 @@ declare module "platform/game_analytics" {
 declare module "platform/browser/game_analytics" {
     export class ShapezGameAnalytics extends GameAnalyticsInterface {
         constructor(app: any);
-        get environment(): "dev" | "steam-sandbox" | "steam" | "prod" | "alpha-sandbox" | "alpha" | "beta-sandbox" | "beta";
+        get environment(): "dev" | "steam" | "prod" | "alpha" | "beta";
         syncKey: any;
         /**
          * Sends a request to the api
