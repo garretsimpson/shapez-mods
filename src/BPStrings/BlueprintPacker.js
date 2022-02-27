@@ -3,52 +3,34 @@
  * Author: SkimnerPhi and FatcatX
  *
  * Packed data syntax
- * - The input data is an array of entities from the game.
- *   Entity format:
- *   {
- *       components: {
- *           StaticMapEntity: {
- *               code: <code>,
- *               origin: { x: <posx>, y: <posy> },
- *               originalRotation: <original-rotation>,
- *               rotation: <rotation>,
- *           },
- *           <component-name>: <component-state>,
- *       },
- *   }
- * - The entities are grouped by location into chunks (16x16 tiles).
- * - The output data is a serialized text string: <chunk>...
- * - Each <chunk> is encoded as <chunk-header>[<symbol-table>][<state-table>]<building-data>...
- *   - version 1+ has <symbol-table>
- *   - version 3+ has <state-table>
+ * - The input data is a list of entities from the game.
+ * - The output data is a serialized text string.
+ * - version 0 format: <chunk>...
+ * - version 1+ format: <symbols><chunk>...
+ * - The <symbols> is a NUL separated list of strings: <len>[<string>[NUL<string>...]]
+ *   - where <len> is two bytes: len >>> 8, len & 0xff
+ * - These entities are grouped by location into chunks (16x16 tiles).
+ * - Each <chunk> is encoded as <chunk-header><building-data>...
  * - The <chunk-header> is 3 bytes:
  *   - 2 bytes <x><y> for the chunk offset.
  *   - 1 byte <n> for the number of buildings contained in the chunk.
- *     - version 2+: building count - 1 is stored to allow 256 buildings.
- * - The <symbol-table> and <state-table> are NUL separated lists of strings.
- *   - Syntax: <len>[<string>[NUL<string>]...]
- *   - where <len> is two bytes: len >>> 8, len & 0xff
- *   - The <symbol-table> contains building codes and component names.
- *   - The <state-table> contains additional component state (settings).
- * - The <building-data> is encoded as <offset><rotation><code><state>
+ *     - version 2+: the building count - 1 is stored to allow 256 buildings.
+ * - The <building-data> is encoded as <offset><rotation><code>[<signal>]
  *   - 1 byte building <offset> encoded as: y << 4 | x.  Example: (0, 12) is 192
  *   - 1 byte <rotation> encoded as (<rotation> / 90) << 4 | <original-rotation> / 90.
- *   - <code> is 1 byte when the building is native to the the game.
- *   - <code> 2 bytes for mod buildings: 0x0<symbol-table-index>
- * - The <state> contains component state data:
- *   - ConstantSignal state values are packed using the scheme below.
- *   - For other components: <len>[<symbol-table-index><state-table-index>]...
- *   - where <len> is 1 byte
+ *   - <code> is 1 bytes when the building is native to the the game.
+ *   - <code> 2 bytes for mod buildings: 0<symbol-table-index>
+ * - Further bytes are only if the building is a constant signal, using the following:
  *
- * ConstantSignal state
- *   0000 000X : boolean
- *   0000 1RGB : color
- *   AAAA 0000 : 1 layer shape header
- *   AAAA BBBB CCCC DDDD : 2-4 layer shape header
- *   RGBss : each quad
+ * Signal compression
+ * 0000 000X : boolean
+ * 0000 1RGB : color
+ * AAAA 0000 : 1 layer shape header
+ * AAAA BBBB CCCC DDDD : 2-4 layer shape header
+ * RGBss : each quad
  *
  * Example
- *   CpCp--Sy would be 1101 0000 10100 10100 11011
+ * CpCp--Sy would be 1101 0000 10100 10100 11011
  */
 
 import { compressX64, decompressX64 } from "core/lzstring";
@@ -69,7 +51,6 @@ const NUL = "\0";
 // b64: base64 encoded
 // compress: compressed and base64 encoded
 // symbols: contains a symbol table
-// state: component state values are stored as strings in the state table
 // bcb: building count bug - count is stored rather than count - 1
 const CONFIGS = {
     "v0-b64": { id: "0", b64: true, bcb: true },
@@ -78,46 +59,11 @@ const CONFIGS = {
     "v1-compress": { id: "3", compress: true, symbols: true, bcb: true },
     "v2-b64": { id: "4", b64: true, symbols: true },
     "v2-compress": { id: "5", compress: true, symbols: true },
-    "v3-b64": { id: "6", b64: true, symbols: true, state: true },
-    "v3-compress": { id: "7", compress: true, symbols: true, state: true },
 };
-
-class StringTable {
-    constructor(data = "") {
-        this.table = [];
-        if (data.length > 0) {
-            // Parse data
-        }
-    }
-
-    // TODO: index must be 1 byte (0..255)
-    addValue(value) {
-        if (typeof value !== "string") value = JSON.stringify(value);
-        let idx = this.table.indexOf(value);
-        if (idx < 0) {
-            idx = this.table.length;
-            this.table.push(value);
-        }
-        return idx;
-    }
-
-    getValue(idx) {
-        let result = this.table[idx];
-        try {
-            result = JSON.parse(result);
-        } catch (e) {
-            // Do nothing
-        }
-        return result;
-    }
-
-    toString() {
-        return "";
-    }
-}
 
 export class BlueprintPacker {
     constructor() {
+        this.symbolTable = [];
         this.configTable = {};
         for (let config of Object.values(CONFIGS)) {
             this.configTable[config.id] = config;
@@ -126,28 +72,14 @@ export class BlueprintPacker {
 
     getCode(code) {
         if (typeof code === "number" && Number.isInteger(code) && code != 0) return [code];
-        return [0, this.addSymbol(code)];
-    }
 
-    getAdditionalState(entity) {
-        const result = [];
-        const comps = Object.entries(entity.components);
-        for (let comp of comps) {
-            const cname = comp[0];
-            const obj = comp[1];
-            const state = {};
-            obj.copyAdditionalStateTo && obj.copyAdditionalStateTo(state);
-            const values = Object.entries(state);
-            for (let value of values) {
-                const sname = value[0];
-                let svalue = value[1];
-                if (svalue.serialize !== undefined) svalue = svalue.serialize();
-                console.debug(cname, sname);
-                console.debug("  ", svalue);
-                const state = {};
-                state[sname] = svalue;
-                result.push([cname, state]);
-            }
+        let result = [0];
+        const idx = this.symbolTable.indexOf(code);
+        if (idx < 0) {
+            result.push(this.symbolTable.length);
+            this.symbolTable.push(code);
+        } else {
+            result.push(idx);
         }
         return result;
     }
@@ -158,6 +90,7 @@ export class BlueprintPacker {
      * @returns {String}
      */
     packEntities(entities) {
+        this.symbolTable = [];
         let minPos = entities.reduce(
             (r, b) => [
                 Math.min(r[0], b.components.StaticMapEntity.origin.x),
@@ -167,45 +100,41 @@ export class BlueprintPacker {
         );
 
         let chunks = [];
-        entities.forEach(entity => {
-            const sme = entity.components.StaticMapEntity;
-            const posx = sme.origin.x - minPos[0];
-            const posy = sme.origin.y - minPos[1];
-            const chunkX = (posx / 16) | 0;
-            const chunkY = (posy / 16) | 0;
+        entities.forEach(b => {
+            let sme = b.components.StaticMapEntity;
+
+            let x = sme.origin.x - minPos[0];
+            let y = sme.origin.y - minPos[1];
+
+            let chunkX = (x / 16) | 0;
+            let chunkY = (y / 16) | 0;
 
             let chunk = chunks.find(c => c[0][0] === chunkX && c[0][1] === chunkY);
             if (!chunk) {
                 // 3 bytes are used for the chunk headers
-                // 2 bytes for position, 1 byte for building count (added later)
+                // 2 bytes for position, 1 byte for building count
+                // the building count in the header is added later
                 chunk = [[chunkX, chunkY]];
                 chunks.push(chunk);
             }
 
             // 3 or 4 bytes are used for all buildings
-            // position, rotation and code
-            const pos = (posx % 16 << 4) | posy % 16;
-            const rot = ((sme.rotation / 90) << 4) | (sme.originalRotation / 90);
+            // position, rotation, and ID
             const code = this.getCode(sme.code);
-            let building = [pos, rot, ...code];
-
-            const addState = this.getAdditionalState(entity);
-            const data = [addState.length]; // TODO: must be less than 256
-            for (let state of addState) {
-                const cname = state[0];
-                const value = state[1];
-                const cIdx = this.addSymbol(cname);
-                const vIdx = this.addSymbol(value);
-                data.push(cIdx, vIdx);
+            let building = [
+                (x % 16 << 4) | y % 16,
+                ((sme.rotation / 90) << 4) | (sme.originalRotation / 90),
+                ...code,
+            ];
+            let signal = [];
+            if (sme.code === CONSTANT_SIGNAL) {
+                // signal values use a format that adds 1-12 bytes
+                signal = this.writeValue(
+                    b.components.ConstantSignal.signal.data,
+                    b.components.ConstantSignal.signal.$
+                );
             }
-            // Special handling of ConstantSignal components
-            // let signal = [];
-            // if (sme.code === CONSTANT_SIGNAL) {
-            //     const value = b.components.ConstantSignal.serialize();
-            //     // signal values use a format that adds 1-12 bytes
-            //     signal = this.writeValue(value.signal.data, value.signal.$);
-            // }
-            chunk.push([...building, ...data]);
+            chunk.push([...building, ...signal]);
         });
 
         // finish by adding the building count (-1) to the chunk headers
@@ -229,9 +158,9 @@ export class BlueprintPacker {
         // ouput strings will always start with >>> and a flag indicating format and end with <<<
         output = BP_PREFIX;
         if (compressedOutput.length < b64Output.length) {
-            output += CONFIGS["v3-compress"].id + compressedOutput;
+            output += CONFIGS["v2-compress"].id + compressedOutput;
         } else {
-            output += CONFIGS["v3-b64"].id + b64Output;
+            output += CONFIGS["v2-b64"].id + b64Output;
         }
         output += BP_SUFFIX;
 
@@ -273,13 +202,14 @@ export class BlueprintPacker {
         if (config.compress) data = decompressX64(data);
 
         let idx = 0;
-        if (config.symbols || config.allState) {
+        let symbols = [];
+        if (config.symbols) {
             // Get symbol table
             const hb = data.charCodeAt(idx++);
             const lb = data.charCodeAt(idx++);
             const len = (hb << 8) | lb;
-            this.symbolTable = data.substring(idx, idx + len).split(NUL);
-            console.debug("##### symbols:", this.symbolTable);
+            symbols = data.substring(idx, idx + len).split(NUL);
+            console.debug("##### symbols:", symbols);
             idx += len;
         }
 
@@ -287,30 +217,21 @@ export class BlueprintPacker {
         let buildings = [];
         while (idx < data.length) {
             // consume 3 bytes for chunk header
-            const chunkX = data.charCodeAt(idx++);
-            const chunkY = data.charCodeAt(idx++);
+            let chunkX = data.charCodeAt(idx++);
+            let chunkY = data.charCodeAt(idx++);
             let chunkBuildings = data.charCodeAt(idx++);
             if (!config.bcb) chunkBuildings++;
 
             for (let bldg = 0; bldg < chunkBuildings; bldg++) {
                 // consume 3 or 4 bytes for each building
-                const pos = data.charCodeAt(idx++);
-                const rot = data.charCodeAt(idx++);
+                let pos = data.charCodeAt(idx++);
+                let rot = data.charCodeAt(idx++);
                 let code = data.charCodeAt(idx++);
-                if ((config.symbols || config.allState) && code == 0) {
-                    code = this.getSymbol(data.charCodeAt(idx++));
-                }
+                if (config.symbols && code == 0) code = symbols[data.charCodeAt(idx++)];
                 if (!gBuildingVariants[code]) {
                     console.log("Skip building:", code);
                     continue;
                 }
-
-                // return new StaticMapEntityComponent({
-                //     origin: this.origin.copy(),
-                //     rotation: this.rotation,
-                //     originalRotation: this.originalRotation,
-                //     code: this.code,
-                // });
                 let building = {
                     uid: 0,
                     components: {
@@ -325,19 +246,8 @@ export class BlueprintPacker {
                         },
                     },
                 };
-                if (!config.allState && code === CONSTANT_SIGNAL) {
+                if (code === CONSTANT_SIGNAL) {
                     [building.components.ConstantSignal, idx] = this.readValue(data, idx);
-                }
-                if (config.allState) {
-                    const stateLen = data.charCodeAt(idx++);
-                    for (let i = 0; i < stateLen; ++i) {
-                        const cIdx = data.charCodeAt(idx++);
-                        const sIdx = data.charCodeAt(idx++);
-                        const cname = this.getSymbol(cIdx);
-                        const state = this.getSymbol(sIdx);
-                        console.debug(cname, state);
-                        // building.components[cname] = state;
-                    }
                 }
 
                 maxPos = [
@@ -369,7 +279,6 @@ export class BlueprintPacker {
             return [(COLORS.indexOf(value) & 0b0111) | 0b1000];
         }
         if (type === "shape") {
-            // TODO: verify this is a plain vanilla shape that can be packed
             // remove layer separators
             value = value.replaceAll(":", "");
             // pad to 2 or 4 layers, split into array of quads

@@ -39,9 +39,8 @@ const SerializerInternalExt = () => ({
         });
         entity.uid = payload.uid;
 
-        // let errorStatus = this.deserializeComponents(root, entity, payload.components);
-        // return errorStatus || entity;
-        return entity;
+        let errorStatus = this.deserializeComponents(root, entity, payload.components);
+        return errorStatus || entity;
     },
 });
 
@@ -59,15 +58,15 @@ class BPStrings extends Mod {
     }
 
     static serialize(entities) {
-        // const data = new SerializerInternal().serializeEntityArray(entities);
-        console.debug("##### entities out:", entities);
-        const bpString = new BlueprintPacker().packEntities(entities);
+        const data = new SerializerInternal().serializeEntityArray(entities);
+        // console.debug("##### data out:", data);
+        const bpString = new BlueprintPacker().packEntities(data);
         return bpString;
     }
 
     static deserialize(root, data) {
         const entities = new BlueprintPacker().unpackEntities(root, data);
-        console.debug("##### entities in:", entities);
+        // console.debug("##### data in:", entities);
         return new Blueprint(entities);
     }
 
