@@ -3,26 +3,40 @@
  * Author: SkimnerPhi and FatcatX
  *
  * Packed data syntax
- * - The input data is a list of entities from the game.
- * - The output data is a serialized text string.
- * - version 0 format: <chunk>...
- * - version 1+ format: <symbols><chunk>...
- * - The <symbols> is a NUL separated list of strings: <len>[<string>[NUL<string>...]]
- *   - where <len> is two bytes: len >>> 8, len & 0xff
- * - These entities are grouped by location into chunks (16x16 tiles).
- * - Each <chunk> is encoded as <chunk-header><building-data>...
+ * - The input data is an array of entities from the game.
+ *   Entity format:
+ *   {
+ *       components: {
+ *           StaticMapEntity: {
+ *               code: <code>,
+ *               origin: { x: <posx>, y: <posy> },
+ *               originalRotation: <original-rotation>,
+ *               rotation: <rotation>,
+ *           },
+ *           <component-name>: <component-state>,  // Only needed if component has state (settings)
+ *       },
+ *   }
+ * - The entities are grouped by location into chunks (16x16 tiles).
+ * - The output data is a serialized text string: <chunk>...
+ * - Each <chunk> is encoded as <chunk-header>[<symbol-table>]<building-data>...
+ *   - version 1+ has <symbol-table>
  * - The <chunk-header> is 3 bytes:
  *   - 2 bytes <x><y> for the chunk offset.
  *   - 1 byte <n> for the number of buildings contained in the chunk.
- *     - version 2+: the building count - 1 is stored to allow 256 buildings.
- * - The <building-data> is encoded as <offset><rotation><code>[<signal>]
+ *     - version 2+: building count - 1 is stored to allow 256 buildings.
+ * - The <symbol-table> is a NUL separated list of strings.
+ *   - syntax: <len>[<string>[NUL<string>]...]
+ *   - where <len> is two bytes: len >>> 8, len & 0xff
+ *   - The <symbol-table> contains building codes and component names.
+ * - The <building-data> is encoded as <offset><rotation><code><state>
  *   - 1 byte building <offset> encoded as: y << 4 | x.  Example: (0, 12) is 192
  *   - 1 byte <rotation> encoded as (<rotation> / 90) << 4 | <original-rotation> / 90.
- *   - <code> is 1 bytes when the building is native to the the game.
- *   - <code> 2 bytes for mod buildings: 0<symbol-table-index>
- * - Further bytes are only if the building is a constant signal, using the following:
+ *   - <code> is 1 byte when the building is native to the the game.
+ *   - <code> 2 bytes for mod buildings: 0x0<symbol-table-index>
+ * - The <state> contains component state data:
+ *   - ConstantSignal state values are packed using the scheme below.
  *
- * Signal compression
+ * ConstantSignal state
  * 0000 000X : boolean
  * 0000 1RGB : color
  * AAAA 0000 : 1 layer shape header
@@ -100,8 +114,8 @@ export class BlueprintPacker {
         );
 
         let chunks = [];
-        entities.forEach(b => {
-            let sme = b.components.StaticMapEntity;
+        entities.forEach(entity => {
+            let sme = entity.components.StaticMapEntity;
 
             let x = sme.origin.x - minPos[0];
             let y = sme.origin.y - minPos[1];
@@ -126,15 +140,13 @@ export class BlueprintPacker {
                 ((sme.rotation / 90) << 4) | (sme.originalRotation / 90),
                 ...code,
             ];
-            let signal = [];
+            let state = [];
             if (sme.code === CONSTANT_SIGNAL) {
                 // signal values use a format that adds 1-12 bytes
-                signal = this.writeValue(
-                    b.components.ConstantSignal.signal.data,
-                    b.components.ConstantSignal.signal.$
-                );
+                const signal = entity.components.ConstantSignal.serialize().signal;
+                state = this.writeValue(signal.data, signal.$);
             }
-            chunk.push([...building, ...signal]);
+            chunk.push([...building, ...state]);
         });
 
         // finish by adding the building count (-1) to the chunk headers
@@ -182,10 +194,6 @@ export class BlueprintPacker {
      * @returns {Array<Entity>}
      */
     unpackEntities(root, dataStr) {
-        // strip newlines
-        const EOL = /[\r\n]/;
-        dataStr = dataStr.replaceAll(EOL, "");
-
         if (!dataStr.startsWith(BP_PREFIX) || !dataStr.endsWith(BP_SUFFIX)) {
             throw "Not a blueprint string";
         }

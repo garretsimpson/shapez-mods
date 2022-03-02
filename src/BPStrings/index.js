@@ -8,6 +8,8 @@ import { BlueprintPacker } from "./BlueprintPacker";
 
 import META from "./mod.json";
 
+const MODES = { json: "json", pack: "pack" };
+
 const HUDBlueprintPlacerExt = ({ $old }) => ({
     createBlueprintFromBuildings(...args) {
         $old.createBlueprintFromBuildings.call(this, ...args);
@@ -45,49 +47,100 @@ const SerializerInternalExt = () => ({
 });
 
 class BPStrings extends Mod {
-    static serializeOld(entities) {
-        let data = new SerializerInternal().serializeEntityArray(entities);
-        for (let entry of data) {
-            delete entry.uid;
-            delete entry.components.WiredPins;
-            delete entry.components.ItemEjector;
-            delete entry.components.ItemProcessor;
-            delete entry.components.UndergroundBelt;
+    static serializeAsJson(entities) {
+        const result = [];
+        // let data = new SerializerInternal().serializeEntityArray(entities);
+        for (let entity of entities) {
+            if (entity.queuedForDestroy || entity.destroyed) continue;
+            const item = entity.serialize();
+            delete item.uid;
+            const comps = Object.entries(entity.components);
+            for (let [name, comp] of comps) {
+                const obj = {};
+                const val = comp.copyAdditionalStateTo(obj);
+                if (val || Object.keys(obj).length > 0) continue;
+                delete item.components[name];
+            }
+            result.push(item);
+        }
+        return JSON.stringify(result);
+    }
+
+    static deserializeJson(root, data) {
+        const json = JSON.parse(data);
+        if (typeof json != "object") return;
+        if (!Array.isArray(json)) return;
+
+        const serializer = new SerializerInternal();
+        /** @type {Array<Entity>} */
+        const entities = [];
+        for (let i = 0; i < json.length; ++i) {
+            /** @type {Entity?} */
+            const value = json[i];
+            if (value.components == undefined || value.components.StaticMapEntity == undefined) return;
+            const staticData = value.components.StaticMapEntity;
+            if (staticData.code == undefined || staticData.origin == undefined) return;
+            const result = serializer.deserializeEntityNoPlace(root, value);
+            if (typeof result === "string") {
+                throw new Error(result);
+            }
+            entities.push(result);
+        }
+        return entities;
+    }
+
+    static serialize(entities) {
+        // console.debug("##### data out:", entities);
+        const mode = META.settings.mode;
+        let data = "";
+        switch (mode) {
+            case MODES.json:
+                data = BPStrings.serializeAsJson(entities);
+                break;
+            case MODES.pack:
+                data = new BlueprintPacker().packEntities(entities);
+                break;
+            default:
+                throw `Unknown blueprint string mode: ${mode}`;
         }
         return data;
     }
 
-    static serialize(entities) {
-        const data = new SerializerInternal().serializeEntityArray(entities);
-        // console.debug("##### data out:", data);
-        const bpString = new BlueprintPacker().packEntities(data);
-        return bpString;
-    }
-
     static deserialize(root, data) {
-        const entities = new BlueprintPacker().unpackEntities(root, data);
+        let entities;
+        try {
+            entities = BPStrings.deserializeJson(root, data);
+            if (!entities) throw "Unable to parse blueprint string as JSON";
+        } catch (e) {
+            entities = new BlueprintPacker().unpackEntities(root, data);
+        }
         // console.debug("##### data in:", entities);
-        return new Blueprint(entities);
+        return entities;
     }
 
     static async copyToClipboard(blueprint) {
-        const data = BPStrings.serialize(blueprint.entities);
-        console.debug("Copy to clipboard:", data);
         try {
+            const data = BPStrings.serialize(blueprint.entities);
+            console.debug("Copy to clipboard:", data);
             await navigator.clipboard.writeText(data);
             // this.root.soundProxy.playUi(SOUNDS.copy);
             console.debug("Copied blueprint to clipboard");
-        } catch (ex) {
-            console.error("Copy to clipboard failed:", ex.message);
+        } catch (e) {
+            console.error("Copy to clipboard failed:", e);
         }
     }
 
     static pasteFromClipboard(root) {
+        const EOL = /[\r\n\u00A0]/;
+        let data;
         let blueprint;
         try {
-            const data = BPStrings.getClipboard().trim();
+            data = BPStrings.getClipboard().trim();
+            data = data.replaceAll(EOL, "");
             console.debug("Received data from clipboard:", data);
-            blueprint = BPStrings.deserialize(root, data);
+            const entities = BPStrings.deserialize(root, data);
+            if (!entities) throw "Unable to parse blueprint string";
+            blueprint = new Blueprint(entities);
         } catch (e) {
             console.error("Paste from clipboard failed:", e);
         }
