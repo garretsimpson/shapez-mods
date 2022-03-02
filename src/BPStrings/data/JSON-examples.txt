@@ -1,0 +1,151 @@
+Here are some examples of the Entity objects used by the game.
+
+Normal layer
+
+4 belts in a circle going clockwise (belt-circle.png)
+[
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": 0, "y": 0 },
+                "rotation": 0,
+                "originalRotation": 0,
+                "code": 3
+            }
+        }
+    },
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": 0, "y": 1 },
+                "rotation": 270,
+                "originalRotation": 0,
+                "code": 3
+            }
+        }
+    },
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": 1, "y": 0 },
+                "rotation": 90,
+                "originalRotation": 180,
+                "code": 3
+            }
+        }
+    },
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": 1, "y": 1 },
+                "rotation": 180,
+                "originalRotation": 270,
+                "code": 3
+            }
+        }
+    }
+]
+
+miner > belt > tunnel > belt > trash (miner-belt-tunnel-trash.jpg)
+[
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": -3, "y": 0 },
+                "rotation": 90,
+                "originalRotation": 90,
+                "code": 8
+            }
+        }
+    },
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": -2, "y": 0 },
+                "rotation": 90,
+                "originalRotation": 90,
+                "code": 1
+            }
+        }
+    },
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": -1, "y": 0 },
+                "rotation": 90,
+                "originalRotation": 90,
+                "code": 22
+            }
+        }
+    },
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": 1, "y": 0 },
+                "rotation": 90,
+                "originalRotation": 270,
+                "code": 23
+            }
+        }
+    },
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": 2, "y": 0 },
+                "rotation": 90,
+                "originalRotation": 90,
+                "code": 1
+            }
+        }
+    },
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": 3, "y": 0 },
+                "rotation": 0,
+                "originalRotation": 0,
+                "code": 20
+            }
+        }
+    }
+]
+
+Wires layer
+
+3 constants (constants.jpg)
+[
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": -2, "y": 0 },
+                "rotation": 0,
+                "originalRotation": 0,
+                "code": 31
+            },
+            "ConstantSignal": { "signal": { "$": "boolean_item", "data": 0 } }
+        }
+    },
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": 0, "y": 0 },
+                "rotation": 0,
+                "originalRotation": 0,
+                "code": 31
+            },
+            "ConstantSignal": { "signal": { "$": "color", "data": "red" } }
+        }
+    },
+    {
+        "components": {
+            "StaticMapEntity": {
+                "origin": { "x": 2, "y": 0 },
+                "rotation": 0,
+                "originalRotation": 0,
+                "code": 31
+            },
+            "ConstantSignal": { "signal": { "$": "shape", "data": "CbCbCbRb:CwCwCwCw" } }
+        }
+    }
+]
+
