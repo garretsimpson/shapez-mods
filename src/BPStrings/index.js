@@ -57,8 +57,8 @@ class BPStrings extends Mod {
             const comps = Object.entries(entity.components);
             for (let [name, comp] of comps) {
                 const obj = {};
-                const val = comp.copyAdditionalStateTo(obj);
-                if (val || Object.keys(obj).length > 0) continue;
+                comp.copyAdditionalStateTo(obj);
+                if (name === "StaticMapEntity" || Object.keys(obj).length > 0) continue;
                 delete item.components[name];
             }
             result.push(item);
@@ -77,13 +77,11 @@ class BPStrings extends Mod {
         for (let i = 0; i < json.length; ++i) {
             /** @type {Entity?} */
             const value = json[i];
-            if (value.components == undefined || value.components.StaticMapEntity == undefined) return;
+            if (!value.components || !value.components.StaticMapEntity) return;
             const staticData = value.components.StaticMapEntity;
-            if (staticData.code == undefined || staticData.origin == undefined) return;
+            if (!staticData.code || !staticData.origin) return;
             const result = serializer.deserializeEntityNoPlace(root, value);
-            if (typeof result === "string") {
-                throw new Error(result);
-            }
+            if (typeof result === "string") throw new Error(result);
             entities.push(result);
         }
         return entities;
@@ -136,8 +134,8 @@ class BPStrings extends Mod {
         let blueprint;
         try {
             data = BPStrings.getClipboard().trim();
-            data = data.replaceAll(EOL, "");
             console.debug("Received data from clipboard:", data);
+            data = data.replaceAll(EOL, "");
             const entities = BPStrings.deserialize(root, data);
             if (!entities) throw "Unable to parse blueprint string";
             blueprint = new Blueprint(entities);
