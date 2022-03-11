@@ -18,26 +18,32 @@
  *   }
  * - The entities are grouped by location into chunks (16x16 tiles).
  * - The output data is a serialized text string: <symbol-table><chunk>...
- *   - version 1+ has <symbol-table>
+ *   - version 1+: has a symbol table
  * - The <symbol-table> is a NUL separated list of strings.
+ *   - The <symbol-table> contains building codes and component names.
  *   - syntax: <len>[<string>[NUL<string>]...]
  *   - where <len> is two bytes: len >>> 8, len & 0xff
- *   - The <symbol-table> contains building codes and component names.
- * - Each <chunk> is encoded as <chunk-header><building-data>...
+ * - Each <chunk> is encoded as <chunk-header><building-data>...<state-tables>
  * - The <chunk-header> is 3 bytes:
  *   - 2 bytes <x><y> for the chunk offset.
  *   - 1 byte <n> for the number of buildings contained in the chunk.
  *     - version 2+: building count - 1 is stored to allow 256 buildings.
- * - The <building-data> is encoded as <offset><rotation><code><state>
+ * - The <building-data> is encoded as <offset><rotation><code><state-ref>
  *   - 1 byte building <offset> encoded as: y << 4 | x.  Example: (0, 12) is 192
  *   - 1 byte <rotation> encoded as (<rotation> / 90) << 4 | <original-rotation> / 90.
  *   - <code> is 1 byte when the building is native to the the game.
  *   - <code> 2 bytes for mod buildings: 0x0<symbol-table-index>
- * - The <state> contains component state data:
- *   - ConstantSignal state values are packed using the scheme below.
+ * - The <state-ref> contains references to state tables: <num>[<symbol-table-index><state-table-index>]...
+ * - The <state-tables> contains component state data:
+ *   - Native components with state (ConstantSignal and Lever) have their own packing scheme and state tables.
+ *   - Other components with state store state values in NUL sepearated list of strings.
+ *   - <state-table>: <len><data>...
+ *   - where <len> is two bytes: len >>> 8, len & 0xff
+ * - ConstantSignal state values are packed using the scheme below.
  *
  * ConstantSignal state
  * 0000 000X : boolean
+ * 0000 0010 : other - non-native color code
  * 0000 1RGB : color
  * AAAA 0000 : 1 layer shape header
  * AAAA BBBB CCCC DDDD : 2-4 layer shape header
@@ -85,11 +91,37 @@ const CONFIGS = {
 
 export class BlueprintPacker {
     constructor() {
-        this.symbolTable = [];
         this.configTable = {};
         for (let config of Object.values(CONFIGS)) {
             this.configTable[config.id] = config;
         }
+        this.symbolTable = [];
+    }
+
+    clearStateTables() {
+        this.stateTable = [];
+        this.constantSignalTable = [];
+    }
+
+    getTableData() {
+        const result = [];
+        let data;
+        let len;
+
+        // constantSignalTable - binary
+        data = this.constantSignalTable.flat();
+        len = data.length;
+        result.push(len >>> 8, len & 0xff);
+        result.push(data);
+
+        // stateTable - strings
+        data = this.stateTable.join(NUL);
+        // TODO: Encode as binary array?
+        len = data.length;
+        result.push(len >>> 8, len & 0xff);
+        result.push(data);
+
+        return result;
     }
 
     getCode(code) {
@@ -103,6 +135,39 @@ export class BlueprintPacker {
         } else {
             result.push(idx);
         }
+        return result;
+    }
+
+    /**
+     * Pack entities
+     * @param {Array<Entity>} entities
+     * @returns {String}
+     */
+    packEntities(entities) {
+        this.check(entities);
+        const chunks = this.chunkIt(entities);
+
+        const output = [];
+        chunks.forEach(chunk => {
+            output.push(chunk.idX, chunk.idY);
+            output.push(chunk.data.length - 1);
+            this.clearStateTables();
+            chunk.data.forEach(data => {
+                const off = (data.x << 4) | data.y;
+                const sme = data.entity.components.StaticMapEntity;
+                // TODO: Check rotation is a multiple of 90
+                const rot = ((sme.rotation / 90) << 4) | (sme.originalRotation / 90);
+                const code = this.getCode(sme.code);
+                output.push(off, rot, ...code);
+
+                const state = this.getState(data.entity);
+                output.push(...state);
+            });
+            const tableData = this.getTableData();
+            output.push(...tableData);
+        });
+
+        const result = this.formatOutput(output);
         return result;
     }
 
@@ -145,6 +210,36 @@ export class BlueprintPacker {
         return chunks;
     }
 
+    getState(entity) {
+        const comps = entity.components;
+
+        // if entity is known, pack it and return
+        const cname = IDS[comps.StaticMapEntity.code];
+        if (cname) {
+            const checkFunc = this["check" + cname];
+            const value = comps[cname].serialize();
+            if (checkFunc(value)) {
+                const packFunc = this["pack" + cname];
+                return packFunc(comps[cname]);
+            }
+        }
+
+        const result = [0];
+        // Look for components with state
+        const entries = Object.entries(comps);
+        for (let [name, comp] of entries) {
+            const obj = {};
+            comp.copyAdditionalStateTo(obj);
+            if (Object.keys(obj).length == 0) continue;
+            break; // FIXME
+            // add component name to symbol table
+            // add state value to state table
+        }
+        // format result: <len>[<a><b>]...
+        return result;
+    }
+
+    // TODO: use Buffer, TextEncoder, TextDecoder, ...
     formatOutput(output) {
         let outputStr = "";
 
@@ -173,49 +268,6 @@ export class BlueprintPacker {
         const RE = new RegExp(`.{1,${MAX_WIDTH}}`, "g");
         result = result.match(RE).join(EOL);
 
-        return result;
-    }
-
-    /**
-     * Pack entities
-     * @param {Array<Entity>} entities
-     * @returns {String}
-     */
-    packEntities(entities) {
-        this.symbolTable = [];
-
-        this.check(entities);
-        const chunks = this.chunkIt(entities);
-
-        const output = [];
-        chunks.forEach(chunk => {
-            output.push(chunk.idX, chunk.idY);
-            output.push(chunk.data.length - 1);
-            chunk.data.forEach(data => {
-                const comps = data.entity.components;
-                const off = (data.x << 4) | data.y;
-                const sme = comps.StaticMapEntity;
-                const rot = ((sme.rotation / 90) << 4) | (sme.originalRotation / 90);
-                const code = this.getCode(sme.code);
-                output.push(off, rot, ...code);
-
-                const entries = Object.entries(comps);
-                for (let [name, comp] of entries) {
-                    const obj = {};
-                    comp.copyAdditionalStateTo(obj);
-                    if (Object.keys(obj).length == 0) continue;
-                    const packFunc = this["pack" + name];
-                    if (!packFunc) {
-                        console.debug("Unknown component with state:", name);
-                        continue;
-                    }
-                    const state = packFunc(comp.serialize());
-                    output.push(...state);
-                }
-            });
-        });
-
-        const result = this.formatOutput(output);
         return result;
     }
 
@@ -253,12 +305,12 @@ export class BlueprintPacker {
             pos += len;
         }
 
-        let maxPos = { x: 0, y: 0 };
-        let buildings = [];
+        const maxPos = { x: 0, y: 0 };
+        const buildings = [];
         while (pos < data.length) {
             // consume 3 bytes for chunk header
-            let idX = data.charCodeAt(pos++);
-            let idY = data.charCodeAt(pos++);
+            const idX = data.charCodeAt(pos++);
+            const idY = data.charCodeAt(pos++);
             let chunkBuildings = data.charCodeAt(pos++);
             if (!config.bcb) chunkBuildings++;
 
@@ -272,7 +324,7 @@ export class BlueprintPacker {
                     console.log("Skip building:", code);
                     continue;
                 }
-                let building = {
+                const building = {
                     uid: 0,
                     components: {
                         StaticMapEntity: {
@@ -289,7 +341,7 @@ export class BlueprintPacker {
 
                 let name = "";
                 if (!config.state) {
-                    if (code == CONSTANT_SIGNAL) name = "ConstantSignal";
+                    if (code == CONSTANT_SIGNAL) name = "ConstantSignal"; // Why?
                 } else {
                     name = IDS[code];
                 }
@@ -302,6 +354,9 @@ export class BlueprintPacker {
 
                 buildings.push(building);
             }
+            // Parse state tables - ConstantSignal (optional), other (required)
+            // Update state data
+            // note: every component has a state reference/index, but the state may be empty
         }
 
         const entities = buildings.map(e => {
@@ -310,15 +365,46 @@ export class BlueprintPacker {
             origin.y -= (maxPos.y / 2) | 0;
             const result = new SerializerInternal().deserializeEntityNoPlace(root, e);
             if (typeof result === "string") throw new Error(result);
-
             return result;
         });
         return entities;
     }
 
+    checkConstantSignal(comp) {
+        const value = comp.signal;
+        if (!value) return false;
+
+        const TYPE_RE = /^(?:boolean_item|color|shape)$/;
+        if (!TYPE_RE.test(value.$)) return false;
+
+        const bools = "01";
+        const colors = COLORS.join("|");
+        const shapes = SHAPES.join("") + COLORS.map(c => c[0]).join("") + "-:";
+        const DATA_RE = new RegExp(`^(?:[${bools}]|${colors}|[${shapes}]{8,35})$`); // FIXME
+        if (!DATA_RE.test(value.data)) return false;
+
+        return true;
+    }
+
+    // Pack signal value, add to table, return index
+    // TODO: dedup
     packConstantSignal(comp) {
-        const type = comp.signal.$;
-        let value = comp.signal.data;
+        let result;
+        if (this.checkConstantSignal(comp)) {
+            result = this.constantSignalTable.length;
+            const value = this.packSignalValue(comp.signal);
+            this.constantSignalTable.push(value);
+        } else {
+            result = this.stateTable.length;
+            const value = this.packSignalValue(comp.signal);
+            this.stateTable.push(value);
+        }
+        return result;
+    }
+
+    packSignalValue(signal) {
+        const type = signal.$;
+        let value = signal.data;
 
         if (type === "boolean_item") {
             return [value & 1];
@@ -369,7 +455,11 @@ export class BlueprintPacker {
         let type;
         let value;
 
-        if ((head & 0b11111000) === 0b00000000) {
+        if (head === 0b00000010) {
+            const result = [];
+            // TODO: get signal from table
+            return result;
+        } else if ((head & 0b11111110) === 0b00000000) {
             // 0000 0xxx = boolean
             type = "boolean_item";
             value = head;
@@ -391,7 +481,7 @@ export class BlueprintPacker {
             let bits = 0;
 
             for (let i = 0; i < 16; i++) {
-                let enabled = !!((head >> (15 - i)) & 1);
+                const enabled = !!((head >> (15 - i)) & 1);
                 if (enabled) {
                     if (bits < 5) {
                         // load another byte onto the end of the buffer if there aren't enough bits
@@ -405,15 +495,15 @@ export class BlueprintPacker {
                     bits -= 5;
 
                     // rgbSS
-                    let shape = SHAPES[dat & 0b11];
-                    let color = COLORS[(dat >> 2) & 0b111].charAt(0);
+                    const shape = SHAPES[dat & 0b11];
+                    const color = COLORS[(dat >> 2) & 0b111].charAt(0);
                     quads[i] = shape + color;
                 } else {
                     quads[i] = "--";
                 }
             }
 
-            let layerCodes = [];
+            const layerCodes = [];
             for (let layer = 0; layer < 16; layer += 4) {
                 let layerCode = quads.slice(layer, layer + 4).join("");
                 if (layerCode !== "--------") {
@@ -436,6 +526,11 @@ export class BlueprintPacker {
         return result;
     }
 
+    checkLever(comp) {
+        const value = comp.toggled;
+        if (!value || typeof value != "boolean") return false;
+    }
+
     packLever(comp) {
         const value = comp.toggled;
         return value ? [1] : [0];
@@ -443,6 +538,6 @@ export class BlueprintPacker {
 
     unpackLever(dataIn, pos) {
         const value = dataIn.charCodeAt(pos++);
-        return [{ toggled: value == 1 }, pos];
+        return [{ toggled: value === 1 }, pos];
     }
 }

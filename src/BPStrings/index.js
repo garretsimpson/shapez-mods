@@ -5,10 +5,28 @@ import { Mod } from "mods/mod";
 import { Blueprint } from "game/blueprint";
 import { SerializerInternal } from "savegame/serializer_internal";
 import { BlueprintPacker } from "./BlueprintPacker";
+import { HUDSandboxController } from "game/hud/parts/sandbox_controller";
 
 import META from "./mod.json";
 
 const MODES = { json: "json", pack: "pack" };
+
+const HUDSandboxControllerExt = () => ({
+    giveBlueprints() {
+        const SHAPES = [
+            "CbCbCbRb:CwCwCwCw",
+            "Sb----Sb:CbCbCbCb:--CwCw--",
+            "Sb----Sb:3b3b3b3b:--3w3w--",
+            "SbSbSbSb:1b1b1b1b:--CwCw--",
+        ];
+        SHAPES.forEach(shape => {
+            if (!this.root.hubGoals.storedShapes[shape]) {
+                this.root.hubGoals.storedShapes[shape] = 0;
+            }
+            this.root.hubGoals.storedShapes[shape] += 1000;
+        });
+    },
+});
 
 const HUDBlueprintPlacerExt = ({ $old }) => ({
     createBlueprintFromBuildings(...args) {
@@ -58,7 +76,7 @@ class BPStrings extends Mod {
             for (let [name, comp] of comps) {
                 const obj = {};
                 comp.copyAdditionalStateTo(obj);
-                if (name === "StaticMapEntity" || Object.keys(obj).length > 0) continue;
+                if (name == "StaticMapEntity" || Object.keys(obj).length > 0) continue;
                 delete item.components[name];
             }
             result.push(item);
@@ -156,9 +174,15 @@ class BPStrings extends Mod {
         return paste;
     }
 
+    // for debugging
+    initSandbox() {
+        this.modInterface.registerHudElement("sandboxController", HUDSandboxController);
+        this.modInterface.extendClass(HUDSandboxController, HUDSandboxControllerExt);
+    }
+
     init() {
         console.debug("##### Init mod:", META.id);
-
+        this.initSandbox();
         this.modInterface.extendClass(SerializerInternal, SerializerInternalExt);
         this.modInterface.extendClass(HUDBlueprintPlacer, HUDBlueprintPlacerExt);
     }
