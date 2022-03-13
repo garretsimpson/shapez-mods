@@ -1,0 +1,59 @@
+[
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": -1,
+          "y": 0
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "1u1u1u1u"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": 0
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "Sb----Sb:CbCbCbCb:--CwCw--"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": 0
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "Cr1wCr1g"
+        }
+      }
+    }
+  }
+]

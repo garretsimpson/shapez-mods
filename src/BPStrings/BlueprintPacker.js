@@ -61,11 +61,6 @@ const BP_PREFIX = ">>>";
 const BP_SUFFIX = "<<<";
 
 const CONSTANT_SIGNAL = 31;
-const IDS = {
-    31: "ConstantSignal",
-    33: "Lever",
-};
-
 const COLORS = ["uncolored", "blue", "green", "cyan", "red", "purple", "yellow", "white"];
 const SHAPES = ["C", "R", "W", "S"];
 
@@ -260,12 +255,16 @@ export class BlueprintPacker {
             if (Object.keys(obj).length == 0) continue;
             const cidx = this.dedup(this.symbolTable, name);
             const state = comps[name].serialize();
-            const packFunc = this["pack" + name];
             let sidx;
-            if (packFunc) {
-                sidx = packFunc.call(this, state);
-            } else {
-                sidx = this.dedup(this.stateTable, state);
+            switch (name) {
+                case "ConstantSignal":
+                    sidx = this.packConstantSignal(state);
+                    break;
+                case "Lever":
+                    sidx = this.packLever(state);
+                    break;
+                default:
+                    sidx = this.dedup(this.stateTable, JSON.stringify(state));
             }
             result.push([cidx, sidx]);
         }
@@ -338,74 +337,16 @@ export class BlueprintPacker {
 
             const entities = [];
             for (let i = 0; i < num; i++) {
-                // consume 3 or 4 bytes for each building
-                const off = data.charCodeAt(pos++);
-                const rot = data.charCodeAt(pos++);
-                let code = data.charCodeAt(pos++);
-                if (config.symbols && code == 0) code = this.symbolTable[data.charCodeAt(pos++)];
-                if (!gBuildingVariants[code]) {
-                    console.log("Skip building:", code);
-                    continue;
-                }
-                const entity = {
-                    uid: 0,
-                    components: {
-                        StaticMapEntity: {
-                            origin: {
-                                x: ((off >> 4) & 0xf) + 16 * idX,
-                                y: (off & 0xf) + 16 * idY,
-                            },
-                            rotation: ((rot >> 4) & 0xf) * 90,
-                            originalRotation: (rot & 0xf) * 90,
-                            code: code,
-                        },
-                    },
-                };
-
-                if (!config.state && code == CONSTANT_SIGNAL) {
-                    const cname = "ConstantSignal";
-                    const unpackFunc = this["unpack" + cname];
-                    [entity.components[cname], pos] = unpackFunc.call(this, data, pos);
-                }
-                if (config.state) {
-                    const snum = data.charCodeAt(pos++);
-                    for (let j = 0; j < snum; j++) {
-                        const cidx = data.charCodeAt(pos++);
-                        const sidx = data.charCodeAt(pos++);
-                        const cname = this.symbolTable[cidx];
-                        entity.components[cname] = { sidx };
-                    }
-                }
-
+                let entity;
+                [entity, pos] = this.unpackEntity(config, data, pos, idX, idY);
                 maxPos.x = Math.max(maxPos.x, entity.components.StaticMapEntity.origin.x);
                 maxPos.y = Math.max(maxPos.y, entity.components.StaticMapEntity.origin.y);
-
                 entities.push(entity);
             }
             if (config.state) {
                 pos += this.setStateTable(data, pos);
                 pos += this.setConstantSignalTable(data, pos);
-                for (let entity of entities) {
-                    const entries = Object.entries(entity.components);
-                    for (let [cname, comp] of entries) {
-                        const sidx = comp.sidx;
-                        let state;
-                        switch (cname) {
-                            case "StaticMapEntity":
-                                continue;
-                            case "ConstantSignal":
-                                state = this.constantSignalTable[sidx];
-                                break;
-                            case "Lever":
-                                state = this.unpackLever(sidx);
-                                break;
-                            default:
-                                state = JSON.parse(this.stateTable[sidx]);
-                                break;
-                        }
-                        entity.components[cname] = state;
-                    }
-                }
+                this.unpackState(entities);
             }
             buildings.push(...entities);
         }
@@ -419,6 +360,72 @@ export class BlueprintPacker {
             return result;
         });
         return entities;
+    }
+
+    unpackEntity(config, data, pos, idX, idY) {
+        // consume 3 or 4 bytes for each building
+        const off = data.charCodeAt(pos++);
+        const rot = data.charCodeAt(pos++);
+        let code = data.charCodeAt(pos++);
+        if (config.symbols && code == 0) {
+            code = this.symbolTable[data.charCodeAt(pos++)];
+        }
+        if (!gBuildingVariants[code]) {
+            console.log("Skip building:", code);
+            return;
+        }
+        const entity = {
+            uid: 0,
+            components: {
+                StaticMapEntity: {
+                    origin: {
+                        x: ((off >> 4) & 0xf) + 16 * idX,
+                        y: (off & 0xf) + 16 * idY,
+                    },
+                    rotation: ((rot >> 4) & 0xf) * 90,
+                    originalRotation: (rot & 0xf) * 90,
+                    code: code,
+                },
+            },
+        };
+
+        if (!config.state && code == CONSTANT_SIGNAL) {
+            [entity.components.ConstantSignal, pos] = this.unpackConstantSignal(data, pos);
+        }
+        if (config.state) {
+            const num = data.charCodeAt(pos++);
+            for (let i = 0; i < num; i++) {
+                const cidx = data.charCodeAt(pos++);
+                const sidx = data.charCodeAt(pos++);
+                const cname = this.symbolTable[cidx];
+                entity.components[cname] = { sidx };
+            }
+        }
+
+        return [entity, pos];
+    }
+
+    unpackState(entities) {
+        for (let entity of entities) {
+            const entries = Object.entries(entity.components);
+            for (let [cname, comp] of entries) {
+                const sidx = comp.sidx;
+                if (sidx == undefined) continue;
+                let state;
+                switch (cname) {
+                    case "ConstantSignal":
+                        state = this.constantSignalTable[sidx];
+                        break;
+                    case "Lever":
+                        state = this.unpackLever(sidx);
+                        break;
+                    default:
+                        state = JSON.parse(this.stateTable[sidx]);
+                        break;
+                }
+                entity.components[cname] = state;
+            }
+        }
     }
 
     checkConstantSignal(state) {
@@ -445,8 +452,7 @@ export class BlueprintPacker {
             value = this.packSignalValue(state.signal);
         } else {
             // Store state in stateTable, store index in constantSignalTable
-            const state = JSON.stringify(state);
-            const idx = this.dedup(this.stateTable, state);
+            const idx = this.dedup(this.stateTable, JSON.stringify(state));
             value = [0x2, idx];
         }
         value = String.fromCharCode(...value);

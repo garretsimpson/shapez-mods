@@ -81,8 +81,7 @@ class BPStrings extends Mod {
             }
             result.push(item);
         }
-        // TODO: format result?
-        return JSON.stringify(result);
+        return JSON.stringify(result, null, 2);
     }
 
     static deserializeJson(root, data) {
@@ -98,7 +97,7 @@ class BPStrings extends Mod {
             const value = json[i];
             if (!value.components || !value.components.StaticMapEntity) return;
             const staticData = value.components.StaticMapEntity;
-            if (!staticData.code || !staticData.origin) return;
+            if (!staticData.code == undefined || !staticData.origin) return;
             const result = serializer.deserializeEntityNoPlace(root, value);
             if (typeof result === "string") throw new Error(result);
             entities.push(result);
@@ -148,13 +147,16 @@ class BPStrings extends Mod {
     }
 
     static pasteFromClipboard(root) {
-        const EOL = /[\r\n\u00A0]/;
+        const EOL = "\n";
         let data;
         let blueprint;
         try {
             data = BPStrings.getClipboard().trim();
             console.debug("Received data from clipboard:", data);
-            data = data.replaceAll(EOL, "");
+            data = data
+                .split(EOL)
+                .map(s => s.trim())
+                .join("");
             const entities = BPStrings.deserialize(root, data);
             if (!entities) throw "Unable to parse blueprint string";
             blueprint = new Blueprint(entities);
