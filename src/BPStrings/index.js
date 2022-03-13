@@ -81,6 +81,7 @@ class BPStrings extends Mod {
             }
             result.push(item);
         }
+        // TODO: format result?
         return JSON.stringify(result);
     }
 

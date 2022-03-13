@@ -104,38 +104,77 @@ export class BlueprintPacker {
     }
 
     getTableData() {
-        const result = [];
+        let result = "";
         let data;
         let len;
 
-        // constantSignalTable - binary
-        data = this.constantSignalTable.flat();
-        len = data.length;
-        result.push(len >>> 8, len & 0xff);
-        result.push(data);
-
-        // stateTable - strings
+        // stateTable contains string data
         data = this.stateTable.join(NUL);
-        // TODO: Encode as binary array?
         len = data.length;
-        result.push(len >>> 8, len & 0xff);
-        result.push(data);
+        result += String.fromCharCode(len >>> 8, len & 0xff);
+        result += data;
+
+        // constantSignalTable contains binary data
+        data = this.constantSignalTable.join("");
+        len = data.length;
+        result += String.fromCharCode(len >>> 8, len & 0xff);
+        result += data;
 
         return result;
     }
 
-    getCode(code) {
-        if (typeof code === "number" && Number.isInteger(code) && code != 0) return [code];
-
-        let result = [0];
-        const idx = this.symbolTable.indexOf(code);
+    // Return index of entry
+    // Adds entry to table if needed
+    // TODO: Creaet a table class
+    dedup(table, entry) {
+        let result;
+        const idx = table.indexOf(entry);
         if (idx < 0) {
-            result.push(this.symbolTable.length);
-            this.symbolTable.push(code);
+            result = table.length;
+            table.push(entry);
         } else {
-            result.push(idx);
+            result = idx;
         }
         return result;
+    }
+
+    setSymbolTable(data, pos) {
+        const hb = data.charCodeAt(pos++);
+        const lb = data.charCodeAt(pos++);
+        const len = (hb << 8) | lb;
+        this.symbolTable = data.substring(pos, pos + len).split(NUL);
+        console.debug("##### symbols:", this.symbolTable);
+        return len + 2;
+    }
+
+    setStateTable(data, pos) {
+        const hb = data.charCodeAt(pos++);
+        const lb = data.charCodeAt(pos++);
+        const len = (hb << 8) | lb;
+        this.stateTable = data.substring(pos, pos + len).split(NUL);
+        console.debug("##### state:", this.stateTable);
+        return len + 2;
+    }
+
+    setConstantSignalTable(data, pos) {
+        const hb = data.charCodeAt(pos++);
+        const lb = data.charCodeAt(pos++);
+        const len = (hb << 8) | lb;
+        const end = pos + len;
+        let value;
+        this.constantSignalTable = [];
+        while (pos < end) {
+            [value, pos] = this.unpackConstantSignal(data, pos);
+            this.constantSignalTable.push(value);
+        }
+        console.debug("##### signals:", this.constantSignalTable);
+        return len + 2;
+    }
+
+    getCode(code) {
+        if (typeof code === "number" && Number.isInteger(code) && code != 0) return [code];
+        const idx = this.dedup(this.symbolTable, code);
+        return [0, idx];
     }
 
     /**
@@ -147,10 +186,11 @@ export class BlueprintPacker {
         this.check(entities);
         const chunks = this.chunkIt(entities);
 
-        const output = [];
+        let result = "";
         chunks.forEach(chunk => {
-            output.push(chunk.idX, chunk.idY);
-            output.push(chunk.data.length - 1);
+            const chunkData = [];
+            chunkData.push(chunk.idX, chunk.idY);
+            chunkData.push(chunk.data.length - 1); // number of entities - 1
             this.clearStateTables();
             chunk.data.forEach(data => {
                 const off = (data.x << 4) | data.y;
@@ -158,17 +198,16 @@ export class BlueprintPacker {
                 // TODO: Check rotation is a multiple of 90
                 const rot = ((sme.rotation / 90) << 4) | (sme.originalRotation / 90);
                 const code = this.getCode(sme.code);
-                output.push(off, rot, ...code);
+                chunkData.push(off, rot, ...code);
 
                 const state = this.getState(data.entity);
-                output.push(...state);
+                chunkData.push(...state);
             });
-            const tableData = this.getTableData();
-            output.push(...tableData);
+            result += String.fromCharCode(...chunkData);
+            result += this.getTableData();
         });
 
-        const result = this.formatOutput(output);
-        return result;
+        return this.format(result);
     }
 
     check(data) {
@@ -211,36 +250,29 @@ export class BlueprintPacker {
     }
 
     getState(entity) {
+        const result = [];
         const comps = entity.components;
-
-        // if entity is known, pack it and return
-        const cname = IDS[comps.StaticMapEntity.code];
-        if (cname) {
-            const checkFunc = this["check" + cname];
-            const value = comps[cname].serialize();
-            if (checkFunc(value)) {
-                const packFunc = this["pack" + cname];
-                return packFunc(comps[cname]);
-            }
-        }
-
-        const result = [0];
-        // Look for components with state
         const entries = Object.entries(comps);
+        // Look for components with state
         for (let [name, comp] of entries) {
             const obj = {};
             comp.copyAdditionalStateTo(obj);
             if (Object.keys(obj).length == 0) continue;
-            break; // FIXME
-            // add component name to symbol table
-            // add state value to state table
+            const cidx = this.dedup(this.symbolTable, name);
+            const state = comps[name].serialize();
+            const packFunc = this["pack" + name];
+            let sidx;
+            if (packFunc) {
+                sidx = packFunc.call(this, state);
+            } else {
+                sidx = this.dedup(this.stateTable, state);
+            }
+            result.push([cidx, sidx]);
         }
-        // format result: <len>[<a><b>]...
-        return result;
+        return [result.length, ...result.flat()];
     }
 
-    // TODO: use Buffer, TextEncoder, TextDecoder, ...
-    formatOutput(output) {
+    format(dataStr) {
         let outputStr = "";
 
         // Insert the symbol table
@@ -249,13 +281,11 @@ export class BlueprintPacker {
         const len = symbols.length;
         outputStr += String.fromCharCode(len >>> 8, len & 0xff);
         outputStr += symbols;
-
-        outputStr += String.fromCharCode(...output);
+        outputStr += dataStr;
 
         // convert to both formats & output the shorter option
         let compressedOutput = compressX64(outputStr);
         let b64Output = btoa(outputStr);
-        // ouput strings will always start with >>> and a flag indicating format and end with <<<
         let result = BP_PREFIX;
         if (compressedOutput.length < b64Output.length) {
             result += CONFIGS["v3-compress"].id + compressedOutput;
@@ -294,37 +324,30 @@ export class BlueprintPacker {
         if (config.compress) data = decompressX64(data);
 
         let pos = 0;
-        let symbols = [];
         if (config.symbols) {
-            // Get symbol table
-            const hb = data.charCodeAt(pos++);
-            const lb = data.charCodeAt(pos++);
-            const len = (hb << 8) | lb;
-            symbols = data.substring(pos, pos + len).split(NUL);
-            console.debug("##### symbols:", symbols);
-            pos += len;
+            pos += this.setSymbolTable(data, pos);
         }
-
         const maxPos = { x: 0, y: 0 };
         const buildings = [];
         while (pos < data.length) {
             // consume 3 bytes for chunk header
             const idX = data.charCodeAt(pos++);
             const idY = data.charCodeAt(pos++);
-            let chunkBuildings = data.charCodeAt(pos++);
-            if (!config.bcb) chunkBuildings++;
+            let num = data.charCodeAt(pos++);
+            if (!config.bcb) num++;
 
-            for (let bldg = 0; bldg < chunkBuildings; bldg++) {
+            const entities = [];
+            for (let i = 0; i < num; i++) {
                 // consume 3 or 4 bytes for each building
-                let off = data.charCodeAt(pos++);
-                let rot = data.charCodeAt(pos++);
+                const off = data.charCodeAt(pos++);
+                const rot = data.charCodeAt(pos++);
                 let code = data.charCodeAt(pos++);
-                if (config.symbols && code == 0) code = symbols[data.charCodeAt(pos++)];
+                if (config.symbols && code == 0) code = this.symbolTable[data.charCodeAt(pos++)];
                 if (!gBuildingVariants[code]) {
                     console.log("Skip building:", code);
                     continue;
                 }
-                const building = {
+                const entity = {
                     uid: 0,
                     components: {
                         StaticMapEntity: {
@@ -339,24 +362,52 @@ export class BlueprintPacker {
                     },
                 };
 
-                let name = "";
-                if (!config.state) {
-                    if (code == CONSTANT_SIGNAL) name = "ConstantSignal"; // Why?
-                } else {
-                    name = IDS[code];
+                if (!config.state && code == CONSTANT_SIGNAL) {
+                    const cname = "ConstantSignal";
+                    const unpackFunc = this["unpack" + cname];
+                    [entity.components[cname], pos] = unpackFunc.call(this, data, pos);
                 }
-                if (name) {
-                    const unpackFunc = this["unpack" + name];
-                    [building.components[name], pos] = unpackFunc(data, pos);
+                if (config.state) {
+                    const snum = data.charCodeAt(pos++);
+                    for (let j = 0; j < snum; j++) {
+                        const cidx = data.charCodeAt(pos++);
+                        const sidx = data.charCodeAt(pos++);
+                        const cname = this.symbolTable[cidx];
+                        entity.components[cname] = { sidx };
+                    }
                 }
-                maxPos.x = Math.max(maxPos.x, building.components.StaticMapEntity.origin.x);
-                maxPos.y = Math.max(maxPos.y, building.components.StaticMapEntity.origin.y);
 
-                buildings.push(building);
+                maxPos.x = Math.max(maxPos.x, entity.components.StaticMapEntity.origin.x);
+                maxPos.y = Math.max(maxPos.y, entity.components.StaticMapEntity.origin.y);
+
+                entities.push(entity);
             }
-            // Parse state tables - ConstantSignal (optional), other (required)
-            // Update state data
-            // note: every component has a state reference/index, but the state may be empty
+            if (config.state) {
+                pos += this.setStateTable(data, pos);
+                pos += this.setConstantSignalTable(data, pos);
+                for (let entity of entities) {
+                    const entries = Object.entries(entity.components);
+                    for (let [cname, comp] of entries) {
+                        const sidx = comp.sidx;
+                        let state;
+                        switch (cname) {
+                            case "StaticMapEntity":
+                                continue;
+                            case "ConstantSignal":
+                                state = this.constantSignalTable[sidx];
+                                break;
+                            case "Lever":
+                                state = this.unpackLever(sidx);
+                                break;
+                            default:
+                                state = JSON.parse(this.stateTable[sidx]);
+                                break;
+                        }
+                        entity.components[cname] = state;
+                    }
+                }
+            }
+            buildings.push(...entities);
         }
 
         const entities = buildings.map(e => {
@@ -370,8 +421,8 @@ export class BlueprintPacker {
         return entities;
     }
 
-    checkConstantSignal(comp) {
-        const value = comp.signal;
+    checkConstantSignal(state) {
+        const value = state.signal;
         if (!value) return false;
 
         const TYPE_RE = /^(?:boolean_item|color|shape)$/;
@@ -379,26 +430,27 @@ export class BlueprintPacker {
 
         const bools = "01";
         const colors = COLORS.join("|");
-        const shapes = SHAPES.join("") + COLORS.map(c => c[0]).join("") + "-:";
+        const shapes = SHAPES.join("") + COLORS.map(c => c[0]).join("") + "\\-\\:";
         const DATA_RE = new RegExp(`^(?:[${bools}]|${colors}|[${shapes}]{8,35})$`); // FIXME
         if (!DATA_RE.test(value.data)) return false;
 
         return true;
     }
 
-    // Pack signal value, add to table, return index
-    // TODO: dedup
-    packConstantSignal(comp) {
+    packConstantSignal(state) {
         let result;
-        if (this.checkConstantSignal(comp)) {
-            result = this.constantSignalTable.length;
-            const value = this.packSignalValue(comp.signal);
-            this.constantSignalTable.push(value);
+        let value;
+        if (this.checkConstantSignal(state)) {
+            // pack signal value in constantSignalTable, return index
+            value = this.packSignalValue(state.signal);
         } else {
-            result = this.stateTable.length;
-            const value = this.packSignalValue(comp.signal);
-            this.stateTable.push(value);
+            // Store state in stateTable, store index in constantSignalTable
+            const state = JSON.stringify(state);
+            const idx = this.dedup(this.stateTable, state);
+            value = [0x2, idx];
         }
+        value = String.fromCharCode(...value);
+        result = this.dedup(this.constantSignalTable, value);
         return result;
     }
 
@@ -445,8 +497,7 @@ export class BlueprintPacker {
                 }
                 pos += 5;
             }
-            const result = [...head, ...data];
-            return result;
+            return [...head, ...data];
         }
     }
 
@@ -456,8 +507,9 @@ export class BlueprintPacker {
         let value;
 
         if (head === 0b00000010) {
-            const result = [];
-            // TODO: get signal from table
+            const idx = dataIn.charCodeAt(pos++);
+            value = this.stateTable[idx];
+            const result = [JSON.parse(value), pos];
             return result;
         } else if ((head & 0b11111110) === 0b00000000) {
             // 0000 0xxx = boolean
@@ -526,18 +578,17 @@ export class BlueprintPacker {
         return result;
     }
 
-    checkLever(comp) {
-        const value = comp.toggled;
-        if (!value || typeof value != "boolean") return false;
+    // TODO: Support modified Lever component.
+    checkLever(state) {
+        const value = state.toggled;
+        return value && typeof value == "boolean";
     }
 
-    packLever(comp) {
-        const value = comp.toggled;
-        return value ? [1] : [0];
+    packLever(state) {
+        return state.toggled ? 1 : 0;
     }
 
-    unpackLever(dataIn, pos) {
-        const value = dataIn.charCodeAt(pos++);
-        return [{ toggled: value === 1 }, pos];
+    unpackLever(value) {
+        return { toggled: value === 1 };
     }
 }
