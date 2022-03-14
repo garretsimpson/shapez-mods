@@ -20,10 +20,9 @@ const HUDSandboxControllerExt = () => ({
             "SbSbSbSb:1b1b1b1b:--CwCw--",
         ];
         SHAPES.forEach(shape => {
-            if (!this.root.hubGoals.storedShapes[shape]) {
-                this.root.hubGoals.storedShapes[shape] = 0;
-            }
-            this.root.hubGoals.storedShapes[shape] += 1000;
+            const store = this.root.hubGoals.storedShapes;
+            if (!store[shape]) store[shape] = 0;
+            store[shape] += 1000;
         });
     },
 });
@@ -185,7 +184,7 @@ class BPStrings extends Mod {
 
     init() {
         console.debug("##### Init mod:", META.id);
-        this.initSandbox();
+        // this.initSandbox();
         this.modInterface.extendClass(SerializerInternal, SerializerInternalExt);
         this.modInterface.extendClass(HUDBlueprintPlacer, HUDBlueprintPlacerExt);
     }

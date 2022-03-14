@@ -104,12 +104,14 @@ export class BlueprintPacker {
         let len;
 
         // stateTable contains string data
+        console.debug("State table entries:", this.stateTable.length);
         data = this.stateTable.join(NUL);
         len = data.length;
         result += String.fromCharCode(len >>> 8, len & 0xff);
         result += data;
 
         // constantSignalTable contains binary data
+        console.debug("Signal table entries:", this.constantSignalTable.length);
         data = this.constantSignalTable.join("");
         len = data.length;
         result += String.fromCharCode(len >>> 8, len & 0xff);
@@ -147,7 +149,7 @@ export class BlueprintPacker {
         const lb = data.charCodeAt(pos++);
         const len = (hb << 8) | lb;
         this.stateTable = data.substring(pos, pos + len).split(NUL);
-        console.debug("##### state:", this.stateTable);
+        // console.debug("##### state:", this.stateTable);
         return len + 2;
     }
 
@@ -162,7 +164,7 @@ export class BlueprintPacker {
             [value, pos] = this.unpackConstantSignal(data, pos);
             this.constantSignalTable.push(value);
         }
-        console.debug("##### signals:", this.constantSignalTable);
+        // console.debug("##### signals:", this.constantSignalTable);
         return len + 2;
     }
 
@@ -195,7 +197,7 @@ export class BlueprintPacker {
                 const code = this.getCode(sme.code);
                 chunkData.push(off, rot, ...code);
 
-                const state = this.getState(data.entity);
+                const state = this.packState(data.entity);
                 chunkData.push(...state);
             });
             result += String.fromCharCode(...chunkData);
@@ -244,7 +246,7 @@ export class BlueprintPacker {
         return chunks;
     }
 
-    getState(entity) {
+    packState(entity) {
         const result = [];
         const comps = entity.components;
         const entries = Object.entries(comps);
