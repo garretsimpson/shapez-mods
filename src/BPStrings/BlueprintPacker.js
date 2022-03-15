@@ -14,6 +14,7 @@
  *               rotation: <rotation>,
  *           },
  *           <component-name>: <component-state>,  // Only needed if component has state (settings)
+ *           ...
  *       },
  *   }
  * - The entities are grouped by location into chunks (16x16 tiles).
@@ -122,7 +123,7 @@ export class BlueprintPacker {
 
     // Return index of entry
     // Adds entry to table if needed
-    // TODO: Creaet a table class
+    // TODO: Create a table class
     dedup(table, entry) {
         let result;
         const idx = table.indexOf(entry);
@@ -256,7 +257,7 @@ export class BlueprintPacker {
             comp.copyAdditionalStateTo(obj);
             if (Object.keys(obj).length == 0) continue;
             const cidx = this.dedup(this.symbolTable, name);
-            const state = comps[name].serialize();
+            const state = comp.serialize();
             let sidx;
             switch (name) {
                 case "ConstantSignal":
@@ -589,7 +590,7 @@ export class BlueprintPacker {
     // TODO: Support modified Lever component.
     checkLever(state) {
         const value = state.toggled;
-        return value && typeof value == "boolean";
+        return value != undefined && typeof value == "boolean";
     }
 
     packLever(state) {
