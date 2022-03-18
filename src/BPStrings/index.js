@@ -1,11 +1,12 @@
 import { Vector } from "core/vector";
+import { Blueprint } from "game/blueprint";
 import { getBuildingDataFromCode } from "game/building_codes";
 import { HUDBlueprintPlacer } from "game/hud/parts/blueprint_placer";
+import { enumNotificationType } from "game/hud/parts/notifications";
+import { HUDSandboxController } from "game/hud/parts/sandbox_controller";
 import { Mod } from "mods/mod";
-import { Blueprint } from "game/blueprint";
 import { SerializerInternal } from "savegame/serializer_internal";
 import { BlueprintPacker } from "./BlueprintPacker";
-import { HUDSandboxController } from "game/hud/parts/sandbox_controller";
 
 import META from "./mod.json";
 
@@ -30,7 +31,7 @@ const HUDSandboxControllerExt = () => ({
 const HUDBlueprintPlacerExt = ({ $old }) => ({
     createBlueprintFromBuildings(...args) {
         $old.createBlueprintFromBuildings.call(this, ...args);
-        BPStrings.copyToClipboard(this.currentBlueprint.get());
+        BPStrings.copyToClipboard(this.currentBlueprint.get(), this.root);
     },
 
     pasteBlueprint(...args) {
@@ -133,13 +134,17 @@ class BPStrings extends Mod {
         return entities;
     }
 
-    static async copyToClipboard(blueprint) {
+    static async copyToClipboard(blueprint, root) {
         try {
             const data = BPStrings.serialize(blueprint.entities);
             console.debug("Copy to clipboard:", data);
             await navigator.clipboard.writeText(data);
             // this.root.soundProxy.playUi(SOUNDS.copy);
-            console.debug("Copied blueprint to clipboard");
+            // console.debug("Blueprint copied to clipboard");
+            root.hud.signals.notification.dispatch(
+                "Blueprint copied to clipboard",
+                enumNotificationType.info
+            );
         } catch (e) {
             console.error("Copy to clipboard failed:", e);
         }
@@ -161,6 +166,12 @@ class BPStrings extends Mod {
             blueprint = new Blueprint(entities);
         } catch (e) {
             console.error("Paste from clipboard failed:", e);
+        }
+        if (blueprint) {
+            root.hud.signals.notification.dispatch(
+                "Received blueprint from clipboard",
+                enumNotificationType.info
+            );
         }
         return blueprint;
     }

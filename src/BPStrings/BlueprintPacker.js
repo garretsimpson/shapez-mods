@@ -55,8 +55,8 @@
  */
 
 import { compressX64, decompressX64 } from "core/lzstring";
-import { SerializerInternal } from "savegame/serializer_internal";
 import { gBuildingVariants } from "game/building_codes";
+import { SerializerInternal } from "savegame/serializer_internal";
 
 const BP_PREFIX = ">>>";
 const BP_SUFFIX = "<<<";
@@ -99,22 +99,39 @@ export class BlueprintPacker {
         this.constantSignalTable = [];
     }
 
-    getTableData() {
-        let result = "";
-        let data;
-        let len;
+    // symbolTable contains string data
+    getSymbolTableData() {
+        console.debug("##### symbols:", this.symbolTable);
 
-        // stateTable contains string data
-        console.debug("State table entries:", this.stateTable.length);
-        data = this.stateTable.join(NUL);
-        len = data.length;
+        let result = "";
+        const data = this.symbolTable.join(NUL);
+        const len = data.length;
         result += String.fromCharCode(len >>> 8, len & 0xff);
         result += data;
 
-        // constantSignalTable contains binary data
+        return result;
+    }
+
+    // stateTable contains string data
+    getStateTableData() {
+        console.debug("State table entries:", this.stateTable.length);
+
+        let result = "";
+        const data = this.stateTable.join(NUL);
+        const len = data.length;
+        result += String.fromCharCode(len >>> 8, len & 0xff);
+        result += data;
+
+        return result;
+    }
+
+    // constantSignalTable contains binary data
+    getConstantSignalTableData() {
         console.debug("Signal table entries:", this.constantSignalTable.length);
-        data = this.constantSignalTable.join("");
-        len = data.length;
+
+        let result = "";
+        const data = this.constantSignalTable.join("");
+        const len = data.length;
         result += String.fromCharCode(len >>> 8, len & 0xff);
         result += data;
 
@@ -142,7 +159,7 @@ export class BlueprintPacker {
         const len = (hb << 8) | lb;
         this.symbolTable = data.substring(pos, pos + len).split(NUL);
         console.debug("##### symbols:", this.symbolTable);
-        return len + 2;
+        return pos + len;
     }
 
     setStateTable(data, pos) {
@@ -151,7 +168,7 @@ export class BlueprintPacker {
         const len = (hb << 8) | lb;
         this.stateTable = data.substring(pos, pos + len).split(NUL);
         // console.debug("##### state:", this.stateTable);
-        return len + 2;
+        return pos + len;
     }
 
     setConstantSignalTable(data, pos) {
@@ -166,7 +183,7 @@ export class BlueprintPacker {
             this.constantSignalTable.push(value);
         }
         // console.debug("##### signals:", this.constantSignalTable);
-        return len + 2;
+        return end;
     }
 
     getCode(code) {
@@ -202,7 +219,8 @@ export class BlueprintPacker {
                 chunkData.push(...state);
             });
             result += String.fromCharCode(...chunkData);
-            result += this.getTableData();
+            result += this.getStateTableData();
+            result += this.getConstantSignalTableData();
         });
 
         return this.format(result);
@@ -278,11 +296,7 @@ export class BlueprintPacker {
         let outputStr = "";
 
         // Insert the symbol table
-        console.debug("##### symbols:", this.symbolTable);
-        const symbols = this.symbolTable.join(NUL);
-        const len = symbols.length;
-        outputStr += String.fromCharCode(len >>> 8, len & 0xff);
-        outputStr += symbols;
+        outputStr += this.getSymbolTableData();
         outputStr += dataStr;
 
         // convert to both formats & output the shorter option
@@ -327,7 +341,7 @@ export class BlueprintPacker {
 
         let pos = 0;
         if (config.symbols) {
-            pos += this.setSymbolTable(data, pos);
+            pos = this.setSymbolTable(data, pos);
         }
         const maxPos = { x: 0, y: 0 };
         const buildings = [];
@@ -347,8 +361,8 @@ export class BlueprintPacker {
                 entities.push(entity);
             }
             if (config.state) {
-                pos += this.setStateTable(data, pos);
-                pos += this.setConstantSignalTable(data, pos);
+                pos = this.setStateTable(data, pos);
+                pos = this.setConstantSignalTable(data, pos);
                 this.unpackState(entities);
             }
             buildings.push(...entities);
@@ -451,7 +465,7 @@ export class BlueprintPacker {
         let result;
         let value;
         if (this.checkConstantSignal(state)) {
-            // pack signal value in constantSignalTable, return index
+            // pack signal value in constantSignalTable
             value = this.packSignalValue(state.signal);
         } else {
             // Store state in stateTable, store index in constantSignalTable
