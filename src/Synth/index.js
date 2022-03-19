@@ -63,14 +63,14 @@ class SynthSystem extends GameSystem {
         // Create and delete synths as needed
         for (let uid of Object.keys(synths)) {
             if (displayInfo[uid] == undefined) {
-                logger.debug("Delete synth:", uid);
+                logger.log("Delete synth:", uid);
                 synths[uid].dispose();
                 delete synths[uid];
             }
         }
         for (let uid of Object.keys(displayInfo)) {
             if (synths[uid] == undefined) {
-                logger.debug("Create synth:", uid);
+                logger.log("Create synth:", uid);
                 synths[uid] = new ShapezSynth(uid);
             }
         }
@@ -157,9 +157,13 @@ class ShapezSynth {
         const toneIndex = TONE_STR.indexOf(shape[1]);
         if (toneIndex == 0) return note; // rest
 
-        const adjIndex = ADJ_STR.indexOf(shape[2]);
+        const accIndex = ADJ_STR.indexOf(shape[2]);
         const octiveIndex = OCTIVE_STR.indexOf(shape[0]);
-        note = TONES[toneIndex] + ACC[adjIndex] + (octiveIndex + 3);
+        if (octiveIndex == -1 || toneIndex == -1 || accIndex == -1) {
+            console.log("Unknown sound shape:", shape);
+            return null;
+        }
+        note = TONES[toneIndex] + ACC[accIndex] + (octiveIndex + 3);
 
         return note;
     }
@@ -170,7 +174,7 @@ class ShapezSynth {
         this.shape = shape;
         //this.synth.triggerRelease();
         const note = this.getNoteFromShape(this.shape);
-        logger.debug(note);
+        logger.log("Note:", note);
         if (!note) return; // release
         this.synth.triggerAttackRelease(note, "16n");
     }
@@ -182,6 +186,7 @@ class ShapezSynth {
 
 class SynthMod extends Mod {
     init() {
+        console.debug("##### Init mod:", META.id);
         MOD_SIGNALS.doneDrawing = new Signal();
         this.modInterface.runAfterMethod(GameCore, "draw", function () {
             MOD_SIGNALS.doneDrawing.dispatch();
