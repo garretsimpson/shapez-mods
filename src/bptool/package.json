@@ -1,0 +1,11 @@
+{
+    "name": "bptool",
+    "description": "Blueprint tool",
+    "author": "Garret Simpson",
+    "repository": {
+        "url": "git://github.com/garretsimpson/shapez-mods"
+    },
+    "main": "main.js",
+    "type": "module",
+    "version": "0.1"
+}
