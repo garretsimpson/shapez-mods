@@ -72,6 +72,12 @@ export class BP {
         return result;
     }
 
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @param {object} entityData
+     * @param {object} config
+     */
     addXY(x, y, entityData, config) {
         const entity = { components: {} };
         const comps = entity.components;
@@ -94,14 +100,18 @@ export class BP {
         this.entities.push(entity);
     }
 
-    add(entity, config) {
-        this.addXY(this.x, this.y, entity, config);
+    /**
+     * @param {object} entityData
+     * @param {object} config
+     */
+    add(entityData, config) {
+        this.addXY(this.x, this.y, entityData, config);
         this.x++;
     }
 
     toString() {
         const result = JSON.stringify(this.entities, "", 2);
-        console.log("Result:", result);
+        console.debug("Result:", result);
         return result;
     }
 }

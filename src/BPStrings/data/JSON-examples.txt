@@ -149,3 +149,747 @@ Wires layer
     }
 ]
 
+
+Mouse Input Logic
+
+[
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": -2
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "wire_tunnel-turn"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": -1
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "diode"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": 0
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "diode"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": 1
+        },
+        "rotation": 0,
+        "originalRotation": 270,
+        "code": 27
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": 2
+        },
+        "rotation": 270,
+        "originalRotation": 0,
+        "code": 29
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": 3
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "signal_transport-static"
+      },
+      "WirelessCode": {
+        "wirelessCode": "m00"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": -2
+        },
+        "rotation": 90,
+        "originalRotation": 90,
+        "code": 60
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": -1
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 27
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": 0
+        },
+        "rotation": 270,
+        "originalRotation": 0,
+        "code": 29
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": 1
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 34
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": 2
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 46
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": -2
+        },
+        "rotation": 90,
+        "originalRotation": 90,
+        "code": "signal_transport-static"
+      },
+      "WirelessCode": {
+        "wirelessCode": "pixel"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": -1
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "signal_transport-static"
+      },
+      "WirelessCode": {
+        "wirelessCode": "grid"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": 0
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 38
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": 1
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": 2
+        },
+        "rotation": 270,
+        "originalRotation": 270,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuCuCu:CuCuCuCu:CuCuCuCu"
+        }
+      }
+    }
+  }
+]
+
+Display Logic
+
+[
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": -1,
+          "y": -1
+        },
+        "rotation": 90,
+        "originalRotation": 90,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuCuRw"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": -1,
+          "y": 0
+        },
+        "rotation": 90,
+        "originalRotation": 90,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": -1,
+          "y": 1
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuRwCu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": -1
+        },
+        "rotation": 180,
+        "originalRotation": 180,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": 1
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": -1
+        },
+        "rotation": 180,
+        "originalRotation": 180,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:RwCuCuCu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": 0
+        },
+        "rotation": 270,
+        "originalRotation": 270,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": 1
+        },
+        "rotation": 270,
+        "originalRotation": 270,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuRwCuCu"
+        }
+      }
+    }
+  }
+]
+
+Wireless RAM
+
+[
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": -1,
+          "y": -3
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": -1,
+          "y": -1
+        },
+        "rotation": 270,
+        "originalRotation": 270,
+        "code": "memory-write_enable"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": -1,
+          "y": 0
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "signal_transport-static"
+      },
+      "WirelessCode": {
+        "wirelessCode": "test_next_value"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": -1,
+          "y": 1
+        },
+        "rotation": 90,
+        "originalRotation": 90,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": -1,
+          "y": 2
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuCuRu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": -1,
+          "y": 3
+        },
+        "rotation": 90,
+        "originalRotation": 90,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuCuRu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": -3
+        },
+        "rotation": 270,
+        "originalRotation": 270,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuCuRu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": -2
+        },
+        "rotation": 180,
+        "originalRotation": 180,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuCuRu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": -1
+        },
+        "rotation": 270,
+        "originalRotation": 270,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": 0
+        },
+        "rotation": 180,
+        "originalRotation": 180,
+        "code": "signal_transport-static"
+      },
+      "WirelessCode": {
+        "wirelessCode": "test_next_value"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": 1
+        },
+        "rotation": 90,
+        "originalRotation": 90,
+        "code": "memory-write_enable"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": 3
+        },
+        "rotation": 180,
+        "originalRotation": 180,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": -3
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": -1
+        },
+        "rotation": 270,
+        "originalRotation": 270,
+        "code": "memory-write_enable"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": 0
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "signal_transport-static"
+      },
+      "WirelessCode": {
+        "wirelessCode": "test_next_value"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": 1
+        },
+        "rotation": 90,
+        "originalRotation": 90,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": 2
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuCuRu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 1,
+          "y": 3
+        },
+        "rotation": 90,
+        "originalRotation": 90,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuCuRu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": -3
+        },
+        "rotation": 270,
+        "originalRotation": 270,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuCuRu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": -2
+        },
+        "rotation": 180,
+        "originalRotation": 180,
+        "code": 31
+      },
+      "ConstantSignal": {
+        "signal": {
+          "$": "shape",
+          "data": "CuCuCuCu:CuCuCuRu"
+        }
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": -1
+        },
+        "rotation": 270,
+        "originalRotation": 270,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": 0
+        },
+        "rotation": 180,
+        "originalRotation": 180,
+        "code": "signal_transport-static"
+      },
+      "WirelessCode": {
+        "wirelessCode": "test_next_value"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": 1
+        },
+        "rotation": 90,
+        "originalRotation": 90,
+        "code": "memory-write_enable"
+      }
+    }
+  },
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 2,
+          "y": 3
+        },
+        "rotation": 180,
+        "originalRotation": 180,
+        "code": "signal_transport-mirrored"
+      }
+    }
+  }
+]
