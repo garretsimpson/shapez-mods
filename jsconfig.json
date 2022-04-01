@@ -10,5 +10,5 @@
         "skipLibCheck": true,
         "resolveJsonModule": true
     },
-    "exclude": ["./node_modules", "./build/*.mod.js", "./*.js"]
+    "exclude": ["./node_modules", "./build/*.mod.js", "webpack.config.js"]
 }

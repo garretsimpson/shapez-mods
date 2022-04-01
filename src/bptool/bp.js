@@ -18,9 +18,12 @@
  *
  */
 
+const EOL = "\n";
+
 export class BP {
     static ENTITY = {
-        constant_signal: { code: 31, comps: ["ConstantSignal"] },
+        "signal_transport-mirrored": { code: "signal_transport-mirrored" },
+        "constant_signal": { code: 31, comps: ["ConstantSignal"] },
     };
     static COMP = {
         StaticMapEntity:
@@ -38,8 +41,25 @@ export class BP {
     }
 
     /**
+     * @param {number} x
+     * @param {number} y
+     */
+    setXY(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    /**
+     * @returns {Array<number>}
+     */
+    getXY() {
+        return [this.x, this.y];
+    }
+
+    /**
      * @param {string} data
      * @param {object} config
+     * @returns {string}
      */
     doSub(data, config) {
         let result = data;
@@ -77,6 +97,7 @@ export class BP {
      * @param {number} y
      * @param {object} entityData
      * @param {object} config
+     * @returns {object}
      */
     addXY(x, y, entityData, config) {
         const entity = { components: {} };
@@ -94,23 +115,31 @@ export class BP {
         };
         let cname = "StaticMapEntity";
         comps[cname] = this.makeComp(cname, smeConfig);
-        for (cname of entityData.comps) {
-            comps[cname] = this.makeComp(cname, config);
-        }
+        if (entityData.comps)
+            for (cname of entityData.comps) {
+                comps[cname] = this.makeComp(cname, config);
+            }
         this.entities.push(entity);
+        return this;
     }
 
     /**
      * @param {object} entityData
      * @param {object} config
+     * @returns {object}
      */
     add(entityData, config) {
         this.addXY(this.x, this.y, entityData, config);
         this.x++;
+        return this;
     }
 
+    /**
+     * @returns {string}
+     */
     toString() {
-        const result = JSON.stringify(this.entities, "", 2);
+        let result = JSON.stringify(this.entities, "", 2);
+        result += EOL;
         console.debug("Result:", result);
         return result;
     }
