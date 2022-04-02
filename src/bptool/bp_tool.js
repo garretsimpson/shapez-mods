@@ -24,18 +24,18 @@ export class BPTool {
         }
     }
 
-    static makePattern(pattern) {
-        let [posx, posy] = bp.getXY();
+    static makePattern(pattern, config) {
+        let [posx, posy] = [config.posX, config.posY];
         let [x, y] = [posx, posy];
-        let ename, config;
+        let ename, configData;
         for (let row of pattern) {
             x = posx;
             for (let entry of row) {
                 if (entry) {
                     ename = entry[0];
-                    config = entry[1];
+                    configData = entry[1];
                     console.debug(x, y, ename);
-                    bp.addXY(x, y, BP.ENTITY[ename], config);
+                    bp.addXY(x, y, BP.ENTITY[ename], configData);
                 }
                 x++;
             }
@@ -43,14 +43,14 @@ export class BPTool {
         }
     }
 
-    static test() {
-        bp.add(BP.ENTITY["constant_signal"], { $: "shape", data: "CuCuCuCu:CuCuCuRw" });
+    static constantSignal(shape) {
+        bp.add("constant_signal", { $: "shape", data: shape });
     }
 
-    static displayLogic(shape) {
+    static displayLogic(config) {
         const rotA = [90, 180, 0, 270];
         const top = ["CuCuCuRw", "RwCuCuCu", "CuCuRwCu", "CuRwCuCu"];
-        const shapes = top.map(v => shape + ":" + v);
+        const shapes = top.map(v => config.shape + ":" + v);
         const configA = {
             $: "shape",
             data: shapes,
@@ -67,7 +67,25 @@ export class BPTool {
             [B, N, B],
             [A, B, A],
         ];
-        BPTool.makePattern(pattern);
+        BPTool.makePattern(pattern, config);
+    }
+
+    static displayLogicArray(dimX, dimY) {
+        const sizeX = 3;
+        const sizeY = 3;
+        let num, shape;
+        let posX, posY;
+        let config;
+        for (let y = 0; y < dimY; y++) {
+            for (let x = 0; x < dimX; x++) {
+                posX = sizeX * x;
+                posY = sizeY * y;
+                num = (x << 4) + y;
+                shape = Shape.encodeNum(num);
+                config = { posX, posY, shape };
+                BPTool.displayLogic(config);
+            }
+        }
     }
 
     static main() {
@@ -75,7 +93,7 @@ export class BPTool {
         console.log(Date());
         console.log("");
 
-        BPTool.displayLogic("CuCuCuCu");
+        BPTool.displayLogicArray(16, 12);
         BPTool.writeFile(BP_FILE_NAME, bp.toString());
         console.log("Wrote file:", BP_FILE_NAME);
     }
