@@ -16,9 +16,10 @@ const HUDSandboxControllerExt = () => ({
     giveBlueprints() {
         const SHAPES = [
             "CbCbCbRb:CwCwCwCw",
-            "Sb----Sb:CbCbCbCb:--CwCw--",
-            "Sb----Sb:3b3b3b3b:--3w3w--",
-            "SbSbSbSb:1b1b1b1b:--CwCw--",
+            // "6CbCbCbCbCbRb:6CwCwCwCwCwCw", // hex
+            // "Sb----Sb:CbCbCbCb:--CwCw--", // SI
+            // "Sb----Sb:3b3b3b3b:--3w3w--", // SI
+            // "SbSbSbSb:1b1b1b1b:--CwCw--", // SI
         ];
         SHAPES.forEach(shape => {
             const store = this.root.hubGoals.storedShapes;
