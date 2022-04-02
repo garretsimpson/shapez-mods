@@ -27,14 +27,15 @@ export class BPTool {
     static makePattern(pattern) {
         let [posx, posy] = bp.getXY();
         let [x, y] = [posx, posy];
-        let ename, func;
+        let ename, config;
         for (let row of pattern) {
             x = posx;
             for (let entry of row) {
                 if (entry) {
                     ename = entry[0];
-                    func = entry[1];
-                    bp.addXY(x, y, BP.ENTITY[ename], func({ x, y, ename }));
+                    config = entry[1];
+                    console.debug(x, y, ename);
+                    bp.addXY(x, y, BP.ENTITY[ename], config);
                 }
                 x++;
             }
@@ -46,24 +47,27 @@ export class BPTool {
         bp.add(BP.ENTITY["constant_signal"], { $: "shape", data: "CuCuCuCu:CuCuCuRw" });
     }
 
-    static displayLogic() {
-        const ROTS = [180, 270, 0, 90];
-        const CONFIG = { $: "shape", data: "CuCuCuCu:CuCuCuRw" };
-        const f = info => {
-            const x = info.x - 1;
-            const y = info.y - 1;
-            const quad = Shape.gridToQuad(x, y);
-            return { $: CONFIG.$, data: CONFIG.data, rotation: ROTS[quad], originalRotation: ROTS[quad] };
+    static displayLogic(shape) {
+        const rotA = [90, 180, 0, 270];
+        const top = ["CuCuCuRw", "RwCuCuCu", "CuCuRwCu", "CuRwCuCu"];
+        const shapes = top.map(v => shape + ":" + v);
+        const configA = {
+            $: "shape",
+            data: shapes,
+            rotation: rotA,
+            originalRotation: rotA.slice(),
         };
-        const A = ["constant_signal", f];
-        const B = ["signal_transport-mirrored", f];
+        const rotB = [180, 90, 270, 0];
+        const configB = { rotation: rotB, originalRotation: rotB.slice() };
+        const A = ["constant_signal", configA];
+        const B = ["signal_transport-mirrored", configB];
         const N = null;
-        const PATTERN = [
+        const pattern = [
             [A, B, A],
             [B, N, B],
             [A, B, A],
         ];
-        BPTool.makePattern(PATTERN);
+        BPTool.makePattern(pattern);
     }
 
     static main() {
@@ -71,7 +75,7 @@ export class BPTool {
         console.log(Date());
         console.log("");
 
-        BPTool.displayLogic();
+        BPTool.displayLogic("CuCuCuCu");
         BPTool.writeFile(BP_FILE_NAME, bp.toString());
         console.log("Wrote file:", BP_FILE_NAME);
     }

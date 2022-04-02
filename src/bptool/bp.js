@@ -22,8 +22,8 @@ const EOL = "\n";
 
 export class BP {
     static ENTITY = {
-        "signal_transport-mirrored": { code: "signal_transport-mirrored" },
         "constant_signal": { code: 31, comps: ["ConstantSignal"] },
+        "signal_transport-mirrored": { code: "signal_transport-mirrored" },
     };
     static COMP = {
         StaticMapEntity:
@@ -32,6 +32,10 @@ export class BP {
               "originalRotation":__originalRotation__,\
               "code":__code__}',
         ConstantSignal: '{"signal":{"$":__$__,"data":__data__}}',
+    };
+    static CONFIG_DEFAULT = {
+        rotation: 0,
+        originalRotation: 0,
     };
 
     constructor() {
@@ -57,6 +61,24 @@ export class BP {
     }
 
     /**
+     * @param {object} configData
+     * @returns {object}
+     */
+    getConfig(configData) {
+        const result = {};
+        const entries = Object.entries(configData);
+        for (let [key, value] of entries) {
+            if (value === undefined) value = BP.CONFIG_DEFAULT[key];
+            if (typeof value === "object" && Array.isArray(value)) {
+                // console.debug("shift", value);
+                value = value.shift();
+            }
+            result[key] = value;
+        }
+        return result;
+    }
+
+    /**
      * @param {string} data
      * @param {object} config
      * @returns {string}
@@ -67,10 +89,11 @@ export class BP {
         let value;
         for (let key of keys) {
             value = config[key];
+            // console.debug("sub", key, value);
             key = `__${key}__`;
             result = result.replace(key, JSON.stringify(value));
         }
-        console.debug("Sub:", result);
+        // console.debug("Sub:", result);
         return result;
     }
 
@@ -99,12 +122,13 @@ export class BP {
      * @param {object} config
      * @returns {object}
      */
-    addXY(x, y, entityData, config) {
+    addXY(x, y, entityData, configData) {
         const entity = { components: {} };
         const comps = entity.components;
 
-        const rotation = config.rotation === undefined ? 0 : config.rotation;
-        const originalRotation = config.originalRotation === undefined ? 0 : config.originalRotation;
+        const config = this.getConfig(configData);
+        const rotation = config.rotation;
+        const originalRotation = config.originalRotation;
         const code = entityData.code;
         const smeConfig = {
             x,
@@ -140,7 +164,7 @@ export class BP {
     toString() {
         let result = JSON.stringify(this.entities, "", 2);
         result += EOL;
-        console.debug("Result:", result);
+        // console.debug("Result:", result);
         return result;
     }
 }
