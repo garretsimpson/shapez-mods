@@ -22,8 +22,16 @@ const EOL = "\n";
 
 export class BP {
     static ENTITY = {
+        "comparator": { code: 46 },
         "constant_signal": { code: 31, comps: ["ConstantSignal"] },
+        "diode": { code: "diode" },
+        "not": { code: 34 },
         "signal_transport-mirrored": { code: "signal_transport-mirrored" },
+        "signal_transport-static": { code: "signal_transport-static", comps: ["WirelessCode"] },
+        "transistor": { code: 38 },
+        "transistor-mirrored": { code: 60 },
+        "wire": { code: 27 },
+        "wire_tunnel-turn": { code: "wire_tunnel-turn" },
     };
     static COMP = {
         StaticMapEntity:
@@ -32,6 +40,7 @@ export class BP {
               "originalRotation":__originalRotation__,\
               "code":__code__}',
         ConstantSignal: '{"signal":{"$":__$__,"data":__data__}}',
+        WirelessCode: '{"wirelessCode":__wirelessCode__}',
     };
     static CONFIG_DEFAULT = {
         rotation: 0,
@@ -68,7 +77,6 @@ export class BP {
         const result = {};
         const entries = Object.entries(configData);
         for (let [key, value] of entries) {
-            if (value === undefined) value = BP.CONFIG_DEFAULT[key];
             if (typeof value === "object" && Array.isArray(value)) {
                 // console.debug("shift", value);
                 value = value.shift();
@@ -76,6 +84,17 @@ export class BP {
             result[key] = value;
         }
         return result;
+    }
+
+    /**
+     * @param {object} config
+     * @param {string} key
+     * @returns {*}
+     */
+    getValue(config, key) {
+        let value = config[key];
+        if (value === undefined) value = BP.CONFIG_DEFAULT[key];
+        return value;
     }
 
     /**
@@ -88,7 +107,7 @@ export class BP {
         const keys = Object.keys(config);
         let value;
         for (let key of keys) {
-            value = config[key];
+            value = this.getValue(config, key);
             // console.debug("sub", key, value);
             key = `__${key}__`;
             result = result.replace(key, JSON.stringify(value));
@@ -108,6 +127,7 @@ export class BP {
         let dataStr;
         try {
             dataStr = this.doSub(BP.COMP[cname], config);
+            console.debug("JSON:", dataStr);
             result = JSON.parse(dataStr);
         } catch (e) {
             console.error(e);
@@ -127,8 +147,8 @@ export class BP {
         const comps = entity.components;
 
         const config = this.getConfig(configData);
-        const rotation = config.rotation;
-        const originalRotation = config.originalRotation;
+        const rotation = this.getValue(config, "rotation");
+        const originalRotation = this.getValue(config, "originalRotation");
         const code = entityData.code;
         const smeConfig = {
             x,

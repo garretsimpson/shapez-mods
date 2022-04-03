@@ -88,12 +88,47 @@ export class BPTool {
         }
     }
 
+    static inputLogic(config) {
+        const configB = { rotation: 90, originalRotation: 90 };
+        const configC = {
+            rotation: [90, 0, 0],
+            originalRotation: [90, 0, 0],
+            wirelessCode: ["pixel", "grid", config.input],
+        };
+        const configH = {
+            rotation: [0, 270],
+            originalRotation: [0, 270],
+            $: "shape",
+            data: [config.shape, "CuCuCuCu:CuCuCuCu:CuCuCuCu:CuCuCuCu"],
+        };
+        const A = ["wire_tunnel-turn", {}];
+        const B = ["transistor-mirrored", configB];
+        const C = ["signal_transport-static", configC];
+        const D = ["diode", {}];
+        const E = ["wire", {}];
+        const F = ["transistor", {}];
+        const G = ["not", {}];
+        const H = ["constant_signal", configH];
+        const I = ["comparator", {}];
+        const N = null;
+        const pattern = [
+            [A, B, C],
+            [D, E, C],
+            [D, E, F],
+            [E, G, H],
+            [E, I, H],
+            [C, N, N],
+        ];
+        BPTool.makePattern(pattern, config);
+    }
+
     static main() {
         console.log(APP_NAME);
         console.log(Date());
         console.log("");
 
-        BPTool.displayLogicArray(16, 12);
+        // BPTool.displayLogicArray(16, 12);
+        BPTool.inputLogic({ posX: 0, posY: 0, input: "m00", shape: "CuCuCuCu" });
         BPTool.writeFile(BP_FILE_NAME, bp.toString());
         console.log("Wrote file:", BP_FILE_NAME);
     }
