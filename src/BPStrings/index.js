@@ -124,11 +124,16 @@ class BPStrings extends Mod {
     }
 
     static deserialize(root, data) {
+        const EOL = "\n";
         let entities;
         try {
             entities = BPStrings.deserializeJson(root, data);
             if (!entities) throw "Unable to parse blueprint string as JSON";
         } catch (e) {
+            data = data
+                .split(EOL)
+                .map(s => s.trim())
+                .join("");
             entities = new BlueprintPacker().unpackEntities(root, data);
         }
         // console.debug("##### data in:", entities);
@@ -152,16 +157,13 @@ class BPStrings extends Mod {
     }
 
     static pasteFromClipboard(root) {
-        const EOL = "\n";
         let data;
         let blueprint;
         try {
             data = BPStrings.getClipboard().trim();
+            // replace all &nbsp; with plain space
+            // data = data.replace(/\xA0/g, " ");
             console.debug("Received data from clipboard:", data);
-            data = data
-                .split(EOL)
-                .map(s => s.trim())
-                .join("");
             const entities = BPStrings.deserialize(root, data);
             if (!entities) throw "Unable to parse blueprint string";
             blueprint = new Blueprint(entities);
@@ -178,14 +180,21 @@ class BPStrings extends Mod {
     }
 
     static getClipboard() {
-        var pasteTarget = document.createElement("div");
-        pasteTarget.contentEditable = true;
-        var actElem = document.activeElement.appendChild(pasteTarget).parentNode;
+        const pasteTarget = document.createElement("textarea");
+        pasteTarget.setAttribute("position", "absolute");
+        pasteTarget.setAttribute("height", "0");
+        pasteTarget.setAttribute("overflow", "hidden");
+
+        pasteTarget.setAttribute("autocomplete", "off");
+        pasteTarget.setAttribute("autocorrect", "off");
+        pasteTarget.setAttribute("spellcheck", "false");
+
+        const actElem = document.activeElement.appendChild(pasteTarget).parentNode;
         pasteTarget.focus();
         document.execCommand("Paste", null, null);
-        var paste = pasteTarget.innerText;
+        const value = pasteTarget.value;
         actElem.removeChild(pasteTarget);
-        return paste;
+        return value;
     }
 
     // for debugging
