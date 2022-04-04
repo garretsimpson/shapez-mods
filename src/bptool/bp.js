@@ -25,6 +25,7 @@ export class BP {
         "comparator": { code: 46 },
         "constant_signal": { code: 31, comps: ["ConstantSignal"] },
         "diode": { code: "diode" },
+        "memory-write_enable": { code: "memory-write_enable" },
         "not": { code: 34 },
         "signal_transport-mirrored": { code: "signal_transport-mirrored" },
         "signal_transport-static": { code: "signal_transport-static", comps: ["WirelessCode"] },
@@ -48,6 +49,10 @@ export class BP {
     };
 
     constructor() {
+        this.clear();
+    }
+
+    clear() {
         this.entities = [];
         this.x = 0;
         this.y = 0;
@@ -127,7 +132,7 @@ export class BP {
         let dataStr;
         try {
             dataStr = this.doSub(BP.COMP[cname], config);
-            console.debug("JSON:", dataStr);
+            // console.debug("JSON:", dataStr);
             result = JSON.parse(dataStr);
         } catch (e) {
             console.error(e);

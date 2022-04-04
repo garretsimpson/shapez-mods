@@ -32,8 +32,7 @@ export class BPTool {
             x = posx;
             for (let entry of row) {
                 if (entry) {
-                    ename = entry[0];
-                    configData = entry[1];
+                    [ename, configData] = entry;
                     console.debug(x, y, ename);
                     bp.addXY(x, y, BP.ENTITY[ename], configData);
                 }
@@ -122,13 +121,74 @@ export class BPTool {
         BPTool.makePattern(pattern, config);
     }
 
+    static inputLogicArray(dimX, dimY) {
+        const sizeX = 3;
+        const sizeY = 6;
+        let num, input, shape;
+        let posX, posY;
+        let config;
+        for (let y = 0; y < dimY; y++) {
+            for (let x = 0; x < dimX; x++) {
+                posX = sizeX * x;
+                posY = sizeY * y;
+                input = "m" + (x.toString(16) + y.toString(16)).toUpperCase();
+                num = (x << 4) + y;
+                shape = Shape.encodeNum(num);
+                config = { posX, posY, input, shape };
+                BPTool.inputLogic(config);
+            }
+        }
+    }
+
+    static ram(config) {
+        const rotA = [0, 0, 180, 180];
+        const configA = { rotation: rotA, originalRotation: rotA.slice() };
+        const top = ["CuCuCuRw", "RwCuCuCu", "CuCuRwCu", "CuRwCuCu"];
+        const shapes = top.map(v => config.shape + ":" + v);
+        const rotB = [270, 270, 90, 90];
+        const configB = {
+            rotation: rotB,
+            originalRotation: rotB.slice(),
+            $: "shape",
+            data: shapes,
+        };
+        const rotC = [270, 270, 90, 90];
+        const configC = { rotation: rotC, originalRotation: rotC.slice() };
+        const rotD = [180, 180, 0, 0];
+        const configD = { rotation: rotD, originalRotation: rotD.slice(), $: "shape", data: shapes.slice() };
+        const rotE = [0, 180, 0, 180];
+        const configE = {
+            rotation: rotE,
+            originalRotation: rotE.slice(),
+            wirelessCode: "next_value",
+        };
+        const A = ["signal_transport-mirrored", configA];
+        const B = ["constant_signal", configB];
+        const C = ["memory-write_enable", configC];
+        const D = ["constant_signal", configD];
+        const E = ["signal_transport-static", configE];
+        const N = null;
+        const pattern = [
+            [A, B, A, B],
+            [N, D, N, D],
+            [C, A, C, A],
+            [E, E, E, E],
+            [A, C, A, C],
+            [D, N, D, N],
+            [B, A, B, A],
+        ];
+        BPTool.makePattern(pattern, config);
+    }
+
     static main() {
         console.log(APP_NAME);
         console.log(Date());
         console.log("");
 
         // BPTool.displayLogicArray(16, 12);
-        BPTool.inputLogic({ posX: 0, posY: 0, input: "m00", shape: "CuCuCuCu" });
+        // BPTool.inputLogicArray(16, 12);
+        // BPTool.inputLogic({ posX: 0, posY: 0, input: "m00", shape: "CuCuCuCu" });
+        BPTool.ram({ posX: 0, posY: 0, shape: "CuCuCuCu" });
         BPTool.writeFile(BP_FILE_NAME, bp.toString());
         console.log("Wrote file:", BP_FILE_NAME);
     }
