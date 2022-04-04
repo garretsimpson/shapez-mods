@@ -1,5 +1,10 @@
 /**
  * Blueprint tool
+ *
+ * TODO:
+ * - Create a class that can hold both single entities and groups of entities.
+ * - Should be able to handles either of these the same way: add to blueprint, combine into larger entity, etc.
+ * - Create helper functions for creating arrays of entities, rotating, etc.
  */
 
 import { writeFileSync } from "fs";
@@ -24,6 +29,10 @@ export class BPTool {
         }
     }
 
+    /**
+     * @param {Array<Array<Array<*>>>} pattern
+     * @param {object} config
+     */
     static makePattern(pattern, config) {
         let [posx, posy] = [config.posX, config.posY];
         let [x, y] = [posx, posy];
@@ -42,13 +51,19 @@ export class BPTool {
         }
     }
 
+    /**
+     * @param {string} shape
+     */
     static constantSignal(shape) {
         bp.add("constant_signal", { $: "shape", data: shape });
     }
 
+    /**
+     * @param {object} config
+     */
     static displayLogic(config) {
         const rotA = [90, 180, 0, 270];
-        const top = ["CuCuCuRw", "RwCuCuCu", "CuCuRwCu", "CuRwCuCu"];
+        const top = ["CrCrCrRr", "RrCrCrCr", "CrCrRrCr", "CrRrCrCr"];
         const shapes = top.map(v => config.shape + ":" + v);
         const configA = {
             $: "shape",
@@ -69,6 +84,10 @@ export class BPTool {
         BPTool.makePattern(pattern, config);
     }
 
+    /**
+     * @param {number} dimX
+     * @param {number} dimY
+     */
     static displayLogicArray(dimX, dimY) {
         const sizeX = 3;
         const sizeY = 3;
@@ -87,6 +106,9 @@ export class BPTool {
         }
     }
 
+    /**
+     * @param {object} config
+     */
     static inputLogic(config) {
         const configB = { rotation: 90, originalRotation: 90 };
         const configC = {
@@ -121,6 +143,10 @@ export class BPTool {
         BPTool.makePattern(pattern, config);
     }
 
+    /**
+     * @param {number} dimX
+     * @param {number} dimY
+     */
     static inputLogicArray(dimX, dimY) {
         const sizeX = 3;
         const sizeY = 6;
@@ -140,22 +166,27 @@ export class BPTool {
         }
     }
 
+    /**
+     * @param {object} config
+     */
     static ram(config) {
-        const rotA = [0, 0, 180, 180];
+        const rotA = [0, 0, 270, 270, 90, 90, 180, 180];
         const configA = { rotation: rotA, originalRotation: rotA.slice() };
-        const top = ["CuCuCuRw", "RwCuCuCu", "CuCuRwCu", "CuRwCuCu"];
-        const shapes = top.map(v => config.shape + ":" + v);
+        const topB = ["CrCrCrRr", "RrCrCrCr", "CrCrRrCr", "CrRrCrCr"];
+        const shapesB = topB.map(v => config.shape + ":" + v);
         const rotB = [270, 270, 90, 90];
         const configB = {
             rotation: rotB,
             originalRotation: rotB.slice(),
             $: "shape",
-            data: shapes,
+            data: shapesB,
         };
         const rotC = [270, 270, 90, 90];
         const configC = { rotation: rotC, originalRotation: rotC.slice() };
+        const topD = ["CuCuCuRw", "RwCuCuCu", "CuCuRwCu", "CuRwCuCu"];
+        const shapesD = topD.map(v => config.shape + ":" + v);
         const rotD = [180, 180, 0, 0];
-        const configD = { rotation: rotD, originalRotation: rotD.slice(), $: "shape", data: shapes.slice() };
+        const configD = { rotation: rotD, originalRotation: rotD.slice(), $: "shape", data: shapesD };
         const rotE = [0, 180, 0, 180];
         const configE = {
             rotation: rotE,
@@ -180,15 +211,61 @@ export class BPTool {
         BPTool.makePattern(pattern, config);
     }
 
+    /**
+     * @param {number} dimX
+     * @param {number} dimY
+     */
+    static ramArray(dimX, dimY) {
+        const sizeX = 4;
+        const sizeY = 7;
+        let num, shape;
+        let posX, posY;
+        let config;
+        for (let y = 0; y < dimY; y++) {
+            for (let x = 0; x < dimX; x++) {
+                posX = sizeX * x;
+                posY = sizeY * y;
+                num = (x << 4) + y;
+                shape = Shape.encodeNum(num);
+                config = { posX, posY, shape };
+                BPTool.ram(config);
+            }
+        }
+    }
+
+    /**
+     * @param {number} dimX
+     * @param {number} dimY
+     */
+    static displaySenderArray(dimX, dimY) {
+        const sizeX = 3;
+        const sizeY = 3;
+        let wirelessCode;
+        let posX, posY;
+        let config;
+        for (let y = 0; y < dimY; y++) {
+            for (let x = 0; x < dimX; x++) {
+                posX = sizeX * x;
+                posY = sizeY * y;
+                wirelessCode = (x.toString(16) + y.toString(16)).toUpperCase();
+                config = { wirelessCode };
+                bp.addXY(posX, posY, BP.ENTITY["wireless_display_managers-quad_sender"], config);
+            }
+        }
+    }
+
     static main() {
         console.log(APP_NAME);
         console.log(Date());
         console.log("");
 
-        // BPTool.displayLogicArray(16, 12);
-        // BPTool.inputLogicArray(16, 12);
+        const [sizeX, sizeY] = [16, 12];
+        // BPTool.displaySenderArray(sizeX, sizeY);
+        // BPTool.displayLogicArray(sizeX, sizeY);
         // BPTool.inputLogic({ posX: 0, posY: 0, input: "m00", shape: "CuCuCuCu" });
+        // BPTool.inputLogicArray(sizeX, sizeY);
         BPTool.ram({ posX: 0, posY: 0, shape: "CuCuCuCu" });
+        // BPTool.ramArray(sizeX, sizeY);
         BPTool.writeFile(BP_FILE_NAME, bp.toString());
         console.log("Wrote file:", BP_FILE_NAME);
     }
