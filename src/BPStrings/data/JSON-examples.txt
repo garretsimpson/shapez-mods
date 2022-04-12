@@ -914,3 +914,24 @@ Wireless Display Sender
     }
   }
 ]
+
+Display
+
+[
+  {
+    "components": {
+      "StaticMapEntity": {
+        "origin": {
+          "x": 0,
+          "y": 0
+        },
+        "rotation": 0,
+        "originalRotation": 0,
+        "code": "wireless_display_managers"
+      },
+      "WirelessCode": {
+        "wirelessCode": "FB"
+      }
+    }
+  }
+]

@@ -1,6 +1,20 @@
 export class Shape {
-    static SHAPES = ["C", "R", "S", "W"];
-    static COLORS = ["u", "r", "y", "g", "c", "b", "p", "w"];
+    static SHAPES = {
+        CIRC: "C",
+        RECT: "R",
+        STAR: "S",
+        WIND: "W",
+    };
+    static COLORS = {
+        uncolored: "uncolored",
+        red: "red",
+        yellow: "yellow",
+        greed: "green",
+        cyan: "cyan",
+        blue: "blue",
+        purple: "purple",
+        white: "white",
+    };
 
     /**
      * @param {number} x
@@ -17,17 +31,21 @@ export class Shape {
         return quads[y][x];
     }
 
-    static encodeNum(num) {
+    /**
+     * @param {number} num
+     * @param {string} color
+     * @returns
+     */
+    static encodeNum(num, color = Shape.COLORS.uncolored) {
         if (num < 0 || num > 0xff) {
             console.error("Number to encode must be 0..255:", num);
             return;
         }
-        const color = Shape.COLORS[0];
         const base4 = num.toString(4);
         const shape = base4
             .padStart(4, "0")
             .split("")
-            .map(c => Shape.SHAPES[c] + color)
+            .map(c => Object.values(Shape.SHAPES)[c] + color[0])
             .join("");
         return shape;
     }

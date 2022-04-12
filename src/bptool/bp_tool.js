@@ -62,9 +62,17 @@ export class BPTool {
      * @param {object} config
      */
     static displayLogic(config) {
+        const offset = [
+            { dx: 0, dy: 0 },
+            { dx: 1, dy: 0 },
+            { dx: 0, dy: 1 },
+            { dx: 1, dy: 1 },
+        ];
+        const shapes = offset.map(o =>
+            BPTool.posToShape(2 * config.x + o.dx, 2 * config.y + o.dy, Shape.COLORS.white)
+        );
+
         const rotA = [90, 180, 0, 270];
-        const top = ["CrCrCrRr", "RrCrCrCr", "CrCrRrCr", "CrRrCrCr"];
-        const shapes = top.map(v => config.shape + ":" + v);
         const configA = {
             $: "shape",
             data: shapes,
@@ -91,16 +99,13 @@ export class BPTool {
     static displayLogicArray(dimX, dimY) {
         const sizeX = 3;
         const sizeY = 3;
-        let num, shape;
         let posX, posY;
         let config;
         for (let y = 0; y < dimY; y++) {
             for (let x = 0; x < dimX; x++) {
                 posX = sizeX * x;
                 posY = sizeY * y;
-                num = (x << 4) + y;
-                shape = Shape.encodeNum(num);
-                config = { posX, posY, shape };
+                config = { posX, posY, x, y };
                 BPTool.displayLogic(config);
             }
         }
@@ -169,7 +174,7 @@ export class BPTool {
     /**
      * @param {object} config
      */
-    static ram(config) {
+    static ram1(config) {
         const rotA = [0, 0, 270, 270, 90, 90, 180, 180];
         const configA = { rotation: rotA, originalRotation: rotA.slice() };
         const topB = ["CrCrCrRr", "RrCrCrCr", "CrCrRrCr", "CrRrCrCr"];
@@ -215,7 +220,7 @@ export class BPTool {
      * @param {number} dimX
      * @param {number} dimY
      */
-    static ramArray(dimX, dimY) {
+    static ram1Array(dimX, dimY) {
         const sizeX = 4;
         const sizeY = 7;
         let num, shape;
@@ -228,6 +233,82 @@ export class BPTool {
                 num = (x << 4) + y;
                 shape = Shape.encodeNum(num);
                 config = { posX, posY, shape };
+                BPTool.ram(config);
+            }
+        }
+    }
+
+    static posToShape(x, y, color = Shape.COLORS.uncolored) {
+        return Shape.encodeNum(x, color) + ":" + Shape.encodeNum(y, color);
+    }
+
+    /**
+     * @param {object} config
+     */
+    static ram(config) {
+        const offset = [
+            { dx: 0, dy: 0 },
+            { dx: 1, dy: 0 },
+            { dx: 0, dy: 1 },
+            { dx: 1, dy: 1 },
+        ];
+        const rotA = [0, 0, 270, 270, 90, 90, 180, 180];
+        const configA = { rotation: rotA, originalRotation: rotA.slice() };
+        const shapesB = offset.map(o =>
+            BPTool.posToShape(2 * config.x + o.dx, 2 * config.y + o.dy, Shape.COLORS.red)
+        );
+        const rotB = [270, 270, 90, 90];
+        const configB = {
+            rotation: rotB,
+            originalRotation: rotB.slice(),
+            $: "shape",
+            data: shapesB,
+        };
+        const rotC = [270, 270, 90, 90];
+        const configC = { rotation: rotC, originalRotation: rotC.slice() };
+        const shapesD = offset.map(o =>
+            BPTool.posToShape(2 * config.x + o.dx, 2 * config.y + o.dy, Shape.COLORS.white)
+        );
+        const rotD = [180, 180, 0, 0];
+        const configD = { rotation: rotD, originalRotation: rotD.slice(), $: "shape", data: shapesD };
+        const rotE = [0, 180, 0, 180];
+        const configE = {
+            rotation: rotE,
+            originalRotation: rotE.slice(),
+            wirelessCode: "next_value",
+        };
+        const A = ["signal_transport-mirrored", configA];
+        const B = ["constant_signal", configB];
+        const C = ["memory-write_enable", configC];
+        const D = ["constant_signal", configD];
+        const E = ["signal_transport-static", configE];
+        const N = null;
+        const pattern = [
+            [A, B, A, B],
+            [N, D, N, D],
+            [C, A, C, A],
+            [E, E, E, E],
+            [A, C, A, C],
+            [D, N, D, N],
+            [B, A, B, A],
+        ];
+        BPTool.makePattern(pattern, config);
+    }
+
+    /**
+     * @param {number} dimX
+     * @param {number} dimY
+     */
+    static ramArray(dimX, dimY) {
+        const sizeX = 4;
+        const sizeY = 7;
+        let posX, posY;
+        let config;
+        for (let y = 0; y < dimY; y++) {
+            for (let x = 0; x < dimX; x++) {
+                posX = sizeX * x;
+                posY = sizeY * y;
+                config = { posX, posY, x, y };
                 BPTool.ram(config);
             }
         }
@@ -259,13 +340,13 @@ export class BPTool {
         console.log(Date());
         console.log("");
 
-        const [sizeX, sizeY] = [16, 12];
-        // BPTool.displaySenderArray(sizeX, sizeY);
-        // BPTool.displayLogicArray(sizeX, sizeY);
+        const [dimX, dimY] = [16, 12];
+        // BPTool.displaySenderArray(dimX, dimY);
+        BPTool.displayLogicArray(dimX, dimY);
         // BPTool.inputLogic({ posX: 0, posY: 0, input: "m00", shape: "CuCuCuCu" });
-        // BPTool.inputLogicArray(sizeX, sizeY);
-        BPTool.ram({ posX: 0, posY: 0, shape: "CuCuCuCu" });
-        // BPTool.ramArray(sizeX, sizeY);
+        // BPTool.inputLogicArray(dimX, dimY);
+        // BPTool.ram({ posX: 0, posY: 0, shape: "CuCuCuCu" });
+        // BPTool.ramArray(dimX, dimY);
         BPTool.writeFile(BP_FILE_NAME, bp.toString());
         console.log("Wrote file:", BP_FILE_NAME);
     }
