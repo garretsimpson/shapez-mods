@@ -328,9 +328,27 @@ export class BPTool {
             for (let x = 0; x < dimX; x++) {
                 posX = sizeX * x;
                 posY = sizeY * y;
-                wirelessCode = (x.toString(16) + y.toString(16)).toUpperCase();
+                wirelessCode = (x.toString(32) + y.toString(32)).toUpperCase();
                 config = { wirelessCode };
                 bp.addXY(posX, posY, BP.ENTITY["wireless_display_managers-quad_sender"], config);
+            }
+        }
+    }
+
+    /**
+     * @param {number} dimX
+     * @param {number} dimY
+     */
+    static displayArray(dimX, dimY) {
+        let wirelessCode;
+        let config;
+        for (let y = 0; y < dimY; y++) {
+            for (let x = 0; x < dimX; x++) {
+                wirelessCode = (x.toString(32) + y.toString(32))
+                    // x.toString(16).padStart(2, "0") + y.toString(16).padStart(2, "0")
+                    .toUpperCase();
+                config = { wirelessCode };
+                bp.addXY(x, y, BP.ENTITY["wireless_display_managers"], config);
             }
         }
     }
@@ -340,7 +358,8 @@ export class BPTool {
         console.log(Date());
         console.log("");
 
-        const [dimX, dimY] = [16, 12];
+        const [dimX, dimY] = [32, 20];
+        // BPTool.displayArray(dimX, dimY);
         // BPTool.displaySenderArray(dimX, dimY);
         BPTool.displayLogicArray(dimX, dimY);
         // BPTool.inputLogic({ posX: 0, posY: 0, input: "m00", shape: "CuCuCuCu" });

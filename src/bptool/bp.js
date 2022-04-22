@@ -33,6 +33,10 @@ export class BP {
         "transistor-mirrored": { code: 60 },
         "wire": { code: 27 },
         "wire_tunnel-turn": { code: "wire_tunnel-turn" },
+        "wireless_display_managers": {
+            code: "wireless_display_managers",
+            comps: ["WirelessCode"],
+        },
         "wireless_display_managers-quad_sender": {
             code: "wireless_display_managers-quad_sender",
             comps: ["WirelessCode"],
