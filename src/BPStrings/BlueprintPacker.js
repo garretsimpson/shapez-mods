@@ -356,6 +356,7 @@ export class BlueprintPacker {
             for (let i = 0; i < num; i++) {
                 let entity;
                 [entity, pos] = this.unpackEntity(config, data, pos, idX, idY);
+                if (entity == null) continue;
                 maxPos.x = Math.max(maxPos.x, entity.components.StaticMapEntity.origin.x);
                 maxPos.y = Math.max(maxPos.y, entity.components.StaticMapEntity.origin.y);
                 entities.push(entity);
@@ -387,10 +388,6 @@ export class BlueprintPacker {
         if (config.symbols && code == 0) {
             code = this.symbolTable[data.charCodeAt(pos++)];
         }
-        if (!gBuildingVariants[code]) {
-            console.log("Skip building:", code);
-            return;
-        }
         const entity = {
             uid: 0,
             components: {
@@ -417,6 +414,11 @@ export class BlueprintPacker {
                 const cname = this.symbolTable[cidx];
                 entity.components[cname] = { sidx };
             }
+        }
+
+        if (!gBuildingVariants[code]) {
+            console.log("Skip building:", code);
+            return [null, pos];
         }
 
         return [entity, pos];
