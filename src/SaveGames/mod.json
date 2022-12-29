@@ -1,0 +1,11 @@
+{
+    "id": "save-games",
+    "name": "SaveGames",
+    "author": "FatcatX",
+    "version": "0.1",
+    "description": "Create savegames.txt file.",
+    "website": "https://github.com/garretsimpson/shapez-mods",
+    "minimumGameVersion": ">=1.5.0",
+    "doesNotAffectSavegame": true,
+    "entry": "./index.js"
+}
