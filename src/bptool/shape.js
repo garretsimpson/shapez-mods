@@ -9,7 +9,7 @@ export class Shape {
         uncolored: "uncolored",
         red: "red",
         yellow: "yellow",
-        greed: "green",
+        green: "green",
         cyan: "cyan",
         blue: "blue",
         purple: "purple",
