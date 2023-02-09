@@ -204,7 +204,8 @@ class BPStrings extends Mod {
     }
 
     init() {
-        console.debug("##### Init mod:", META.id);
+        console.debug("##### Init mod:", this.metadata.id);
+        META.settings = this.settings; // Get saved settings
         // this.initSandbox();
         this.modInterface.extendClass(SerializerInternal, SerializerInternalExt);
         this.modInterface.extendClass(HUDBlueprintPlacer, HUDBlueprintPlacerExt);
