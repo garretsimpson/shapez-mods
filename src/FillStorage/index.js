@@ -2,6 +2,7 @@ import { StorageComponent } from "game/components/storage";
 import { HUDMassSelector } from "game/hud/parts/mass_selector";
 import { KEYMAPPINGS, keyToKeyCode } from "game/key_action_mapper";
 import { Mod } from "mods/mod";
+import readme from "./README.md";
 
 import META from "./mod.json";
 
@@ -55,5 +56,6 @@ class FillStorage extends Mod {
     }
 }
 
+META.extra.readme = readme;
 // eslint-disable-next-line no-undef
 registerMod(FillStorage, META);

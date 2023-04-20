@@ -4,8 +4,10 @@
     "author": "FatcatX and SkimnerPhi",
     "version": "0.5.1",
     "description": "Select storages, then press 'b' to clear, or press 'n' to fill.",
-    "website": "https://github.com/garretsimpson/shapez-mods",
     "minimumGameVersion": ">=1.5.0",
     "doesNotAffectSavegame": true,
-    "entry": "./index.js"
+    "entry": "./index.js",
+    "extra": {
+        "source": "https://github.com/garretsimpson/shapez-mods/tree/main/src/FillStorage"
+    }
 }
