@@ -13,6 +13,7 @@ This project contains modifications for Shapez.io (https://github.com/tobspr/sha
 
 ### Create the types.d.ts file
 
+
 Note: This step is needed only if the game source has changed.
 
 -   Clone the game repo (https://github.com/tobspr/shapez.io)
