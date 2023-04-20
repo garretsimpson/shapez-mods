@@ -4,7 +4,7 @@ const METADATA = {
     website: "",
     author: "FatcatX",
     name: "Test Mod",
-    version: "0.1",
+    version: "0.1.1",
     id: "test1",
     description: "A test mod",
     minimumGameVersion: ">=1.5.0",
